@@ -110,8 +110,13 @@
         }
         </script>
 
-        <!-- Security: Content Security Policy -->
-        <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://assets.emergent.sh https://us.i.posthog.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://dropkit.me https://us.i.posthog.com; frame-src 'none';">
+        <!-- Security headers -->
+        <meta http-equiv="X-Content-Type-Options" content="nosniff">
+        <meta http-equiv="X-Frame-Options" content="DENY">
+        <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+        <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+        <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://assets.emergent.sh https://us.i.posthog.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https://dropkit.me; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://dropkit.me https://us.i.posthog.com; frame-src 'none'; object-src 'none'; base-uri 'self';">
         
         <!-- DataCloneError suppression (Emergent platform) -->
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>

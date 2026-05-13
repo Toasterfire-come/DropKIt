@@ -1,0 +1,70 @@
+# Security Configuration for DropKit
+# This file defines security policies and requirements
+
+security_policies:
+  authentication:
+    jwt_expiry_minutes: 30
+    refresh_token_days: 7
+    password_min_length: 12
+    require_2fa: false
+    max_login_attempts: 5
+    lockout_duration_minutes: 15
+
+  authorization:
+    rbac_enabled: true
+    default_role: "user"
+    admin_roles: ["admin", "superuser"]
+
+  data_protection:
+    encrypt_at_rest: true
+    encrypt_in_transit: true
+    pii_encryption: true
+    data_retention_days: 365
+
+  network_security:
+    cors_origins:
+      - "https://dropkit.me"
+      - "http://localhost:3000"  # Development only
+    allowed_hosts:
+      - "dropkit.me"
+      - "localhost"  # Development only
+    rate_limiting:
+      api_requests_per_minute: 60
+      login_attempts_per_minute: 5
+      
+  container_security:
+    run_as_non_root: true
+    read_only_filesystem: true
+    no_new_privileges: true
+    drop_all_capabilities: true
+    
+  monitoring:
+    audit_logging: true
+    security_events: true
+    failed_login_tracking: true
+    suspicious_activity_detection: true
+
+compliance:
+  standards:
+    - "OWASP Top 10"
+    - "NIST Cybersecurity Framework"
+    - "SOC 2 Type II"
+  
+  requirements:
+    - "Regular security scans"
+    - "Dependency vulnerability checks"
+    - "Container image scanning"
+    - "Penetration testing"
+    - "Security code review"
+
+vulnerability_management:
+  scan_frequency: "daily"
+  critical_patch_sla_hours: 24
+  high_patch_sla_days: 7
+  medium_patch_sla_days: 30
+  
+  tools:
+    - "Trivy (container scanning)"
+    - "npm audit (Node.js dependencies)"
+    - "pip-audit (Python dependencies)"
+    - "OWASP ZAP (web application scanning)"

@@ -6,14 +6,28 @@ services:
     container_name: dropkit-mongo
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"  # Bind to localhost only
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
     volumes:
       - mongodb_data:/data/db
+      - ./mongodb/mongod.conf:/etc/mongod.conf:ro
+    command: ["mongod", "--config", "/etc/mongod.conf"]
     networks:
       - dropkit-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run
 
   backend:
     build:
@@ -22,17 +36,33 @@ services:
     container_name: dropkit-backend
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"  # Bind to localhost only
+    env_file:
+      - .env
     environment:
-      - MONGODB_URL=mongodb://admin:password@mongodb:27017/dropkit?authSource=admin
-      - JWT_SECRET=your-jwt-secret-here
-      - FRONTEND_URL=https://dropkit.me
+      - MONGODB_URL=mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongodb:27017/dropkit?authSource=admin
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     volumes:
-      - ./backend:/app
+      - backend_logs:/app/logs
     networks:
       - dropkit-network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
 
   frontend:
     build:
@@ -41,15 +71,26 @@ services:
     container_name: dropkit-frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"  # Bind to localhost only
     environment:
-      - REACT_APP_API_URL=https://dropkit.me/api
-      - REACT_APP_FRONTEND_URL=https://dropkit.me
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - REACT_APP_API_URL=${REACT_APP_API_URL:-https://dropkit.me/api}
+      - REACT_APP_FRONTEND_URL=${REACT_APP_FRONTEND_URL:-https://dropkit.me}
+      - NODE_ENV=production
+    depends_on:
+      - backend
     networks:
       - dropkit-network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
 
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -57,16 +98,30 @@ services:
     restart: unless-stopped
     command: tunnel --config /etc/cloudflared/config.yml run
     volumes:
-      - ./cloudflared:/etc/cloudflared
+      - ./cloudflared:/etc/cloudflared:ro
     depends_on:
       - backend
       - frontend
     networks:
       - dropkit-network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
 
 volumes:
   mongodb_data:
+  backend_logs:
 
 networks:
   dropkit-network:
     driver: bridge
+    internal: false
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
