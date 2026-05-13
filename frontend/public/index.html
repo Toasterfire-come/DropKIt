@@ -13,15 +13,15 @@
         <meta name="author" content="DropKit" />
         <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
         <meta name="googlebot" content="index, follow" />
-        <link rel="canonical" href="https://dropkit.marketing/" />
+        <link rel="canonical" href="https://dropkit.me/" />
 
         <!-- Open Graph -->
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="DropKit" />
         <meta property="og:title" content="DropKit — Open-source hardware, delivered monthly" />
         <meta property="og:description" content="A curated open-source electronics project, every month. Microcontroller, all components, full guide, and a community vote on what comes next." />
-        <meta property="og:url" content="https://dropkit.marketing/" />
-        <meta property="og:image" content="https://dropkit.marketing/og-image.png" />
+        <meta property="og:url" content="https://dropkit.me/" />
+        <meta property="og:image" content="https://dropkit.me/og-image.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="DropKit — circuit-board art on dark background with the wordmark." />
@@ -33,7 +33,7 @@
         <meta name="twitter:creator" content="@dropkitmarketing" />
         <meta name="twitter:title" content="DropKit — Open-source hardware, delivered monthly" />
         <meta name="twitter:description" content="A curated open-source electronics project, every month. $40/mo for board, components, guide." />
-        <meta name="twitter:image" content="https://dropkit.marketing/og-image.png" />
+        <meta name="twitter:image" content="https://dropkit.me/og-image.png" />
         <meta name="twitter:image:alt" content="DropKit — circuit-board art on dark background." />
 
         <!-- PWA / app icons -->
@@ -49,8 +49,8 @@
         <!-- Performance: preconnect to fonts + backend -->
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link rel="preconnect" href="https://kit-preview.preview.emergentagent.com" />
-        <link rel="dns-prefetch" href="https://kit-preview.preview.emergentagent.com" />
+        <link rel="preconnect" href="https://dropkit.me" />
+        <link rel="dns-prefetch" href="https://dropkit.me" />
 
         <!-- Fonts -->
         <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -61,8 +61,8 @@
           "@context": "https://schema.org",
           "@type": "Organization",
           "name": "DropKit",
-          "url": "https://dropkit.marketing",
-          "logo": "https://dropkit.marketing/logo.png",
+          "url": "https://dropkit.me",
+          "logo": "https://dropkit.me/logo.png",
           "description": "Open-source hardware projects, delivered monthly. $40/mo subscription with full board, components, and build guide.",
           "sameAs": [
             "https://github.com/Toasterfire-come/DropKit-Projects",
@@ -80,10 +80,10 @@
           "@context": "https://schema.org",
           "@type": "WebSite",
           "name": "DropKit",
-          "url": "https://dropkit.marketing",
+          "url": "https://dropkit.me",
           "potentialAction": {
             "@type": "SearchAction",
-            "target": "https://dropkit.marketing/apps/makerbox/projects?q={search_term_string}",
+            "target": "https://dropkit.me/projects?q={search_term_string}",
             "query-input": "required name=search_term_string"
           }
         }
@@ -95,12 +95,12 @@
           "@context": "https://schema.org",
           "@type": "Product",
           "name": "DropKit — Monthly Hardware Project Box",
-          "image": "https://dropkit.marketing/og-image.png",
+          "image": "https://dropkit.me/og-image.png",
           "description": "Curated open-source electronics project shipped monthly. Microcontroller, all components, build guide, and community vote on next month's kit.",
           "brand": { "@type": "Brand", "name": "DropKit" },
           "offers": {
             "@type": "Offer",
-            "url": "https://dropkit.marketing/subscribe",
+            "url": "https://dropkit.me/subscribe",
             "priceCurrency": "USD",
             "price": "40.00",
             "priceValidUntil": "2027-12-31",
@@ -110,6 +110,9 @@
         }
         </script>
 
+        <!-- Security: Content Security Policy -->
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://assets.emergent.sh https://us.i.posthog.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://dropkit.me https://us.i.posthog.com; frame-src 'none';">
+        
         <!-- DataCloneError suppression (Emergent platform) -->
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
         <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
