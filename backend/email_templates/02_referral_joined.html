@@ -1,0 +1,36 @@
+<!-- Klaviyo metric: "Referral Joined"
+     Event properties: referrer_first_name, referee_first_name,
+                       referrals_so_far, referrals_needed_for_priority,
+                       referral_code
+-->
+<p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#39D353;letter-spacing:0.15em;text-transform:uppercase;margin:0 0 12px;">// NEW REFERRAL</p>
+<h1 style="font-family:'Space Grotesk',Helvetica,Arial,sans-serif;font-size:28px;line-height:1.15;font-weight:700;margin:0 0 16px;">
+  {{ event.referee_first_name }} just joined.
+</h1>
+<p style="margin:0 0 20px;color:#F0F0EE;">
+  Hey {{ event.referrer_first_name|default:'Maker' }} — {{ event.referee_first_name }} signed up for DropKit using your link.
+</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#21262D;border:1px solid #30363D;margin:0 0 24px;">
+  <tr>
+    <td style="padding:18px 20px;">
+      <p style="margin:0 0 6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#8B949E;letter-spacing:0.15em;text-transform:uppercase;">
+        REFERRALS · {{ event.referrals_so_far }} / 3
+      </p>
+      <div style="height:6px;background:#0D1117;border:1px solid #30363D;position:relative;">
+        <div style="height:100%;background:#E8510A;width:{% if event.referrals_so_far >= 3 %}100{% else %}{{ event.referrals_so_far|multiply:33.34|floatformat:0 }}{% endif %}%;"></div>
+      </div>
+      <p style="margin:10px 0 0;color:#F0F0EE;font-size:14px;">
+        {% if event.referrals_needed_for_priority > 0 %}
+          {{ event.referrals_needed_for_priority }} more and you unlock <strong>priority access</strong> at launch.
+        {% else %}
+          You've unlocked <span style="color:#39D353;">priority access</span>. Now aim for <strong>5 paid referrals</strong> = a free month.
+        {% endif %}
+      </p>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:0 0 20px;color:#8B949E;font-size:14px;">
+  Keep sharing — your code is <span style="color:#E8510A;font-family:'JetBrains Mono',monospace;">{{ event.referral_code }}</span>.
+</p>

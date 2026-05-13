@@ -1,0 +1,18 @@
+<!-- Klaviyo metric: "Launch Announcement"
+     Event properties: first_name, launch_url
+-->
+<p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#E8510A;letter-spacing:0.15em;text-transform:uppercase;margin:0 0 12px;">// IT'S LIVE</p>
+<h1 style="font-family:'Space Grotesk',Helvetica,Arial,sans-serif;font-size:36px;line-height:1.05;font-weight:700;margin:0 0 16px;">
+  DropKit is open, {{ event.first_name|default:'Maker' }}.
+</h1>
+<p style="margin:0 0 16px;color:#F0F0EE;">
+  Subscriptions are open and the first kit is ready to ship. As a thank-you for waiting,
+  you have first dibs — claim your slot before we open it publicly.
+</p>
+<p style="margin:0 0 24px;color:#F0F0EE;">
+  $40/month + shipping. Cancel any time. Open source forever.
+</p>
+<a href="{{ event.launch_url }}"
+   style="display:inline-block;background:#E8510A;color:#0D1117;font-weight:600;font-size:16px;padding:14px 28px;text-decoration:none;">
+  Start my subscription →
+</a>

@@ -1,0 +1,18 @@
+{
+  "short_name": "DropKit",
+  "name": "DropKit — Open-source hardware, delivered monthly",
+  "description": "A curated open-source electronics project, every month. Microcontroller, all components, full guide, and a community vote on what comes next.",
+  "icons": [
+    { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "/favicon-32.png", "type": "image/png", "sizes": "32x32" },
+    { "src": "/apple-touch-icon.png", "type": "image/png", "sizes": "180x180" },
+    { "src": "/maskable-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ],
+  "start_url": "/?utm_source=pwa",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#E8510A",
+  "background_color": "#0D1117",
+  "categories": ["education", "shopping", "lifestyle"],
+  "lang": "en-US"
+}

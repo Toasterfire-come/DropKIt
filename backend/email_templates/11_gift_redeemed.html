@@ -1,0 +1,14 @@
+<!-- Klaviyo metric: "Gift Redeemed"
+     Event properties: recipient_email, gift_code, duration_months
+-->
+<p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#39D353;letter-spacing:0.15em;text-transform:uppercase;margin:0 0 12px;">// GIFT REDEEMED</p>
+<h1 style="font-family:'Space Grotesk',Helvetica,Arial,sans-serif;font-size:28px;line-height:1.15;font-weight:700;margin:0 0 16px;">
+  Your gift just landed.
+</h1>
+<p style="margin:0 0 16px;color:#F0F0EE;">
+  {{ event.recipient_email }} redeemed the {{ event.duration_months }}-month DropKit gift you sent.
+  Their first kit ships with the next cycle.
+</p>
+<p style="margin:0 0 8px;color:#8B949E;font-size:13px;font-family:'JetBrains Mono',monospace;letter-spacing:0.05em;">
+  CODE · {{ event.gift_code }}
+</p>

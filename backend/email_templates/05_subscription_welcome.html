@@ -1,0 +1,26 @@
+<!-- Klaviyo metric: "Subscription Welcome"
+     Event properties: first_name, order_id, first_kit_title
+-->
+<p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#39D353;letter-spacing:0.15em;text-transform:uppercase;margin:0 0 12px;">// SUBSCRIPTION ACTIVE</p>
+<h1 style="font-family:'Space Grotesk',Helvetica,Arial,sans-serif;font-size:30px;line-height:1.1;font-weight:700;margin:0 0 16px;">
+  Welcome aboard, {{ event.first_name|default:'Maker' }}.
+</h1>
+<p style="margin:0 0 16px;color:#F0F0EE;">
+  Your DropKit subscription is live. Your first kit — <strong>{{ event.first_kit_title }}</strong> — ships within the next billing cycle.
+</p>
+<p style="margin:0 0 20px;color:#F0F0EE;">
+  Here's what's unlocked:
+</p>
+<ul style="margin:0 0 24px;padding:0 0 0 18px;color:#F0F0EE;font-size:14px;">
+  <li style="margin-bottom:8px;">Monthly project, board + all components</li>
+  <li style="margin-bottom:8px;">Vote on the project two months out</li>
+  <li style="margin-bottom:8px;">Swap any month's kit for a past project</li>
+  <li>Pause or skip anytime from your account</li>
+</ul>
+<a href="{{ organization.url|default:'https://dropkit.dev' }}/account"
+   style="display:inline-block;background:#E8510A;color:#0D1117;font-weight:600;font-size:14px;padding:12px 22px;text-decoration:none;">
+  Open my account →
+</a>
+<p style="margin:24px 0 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:#8B949E;letter-spacing:0.1em;text-transform:uppercase;">
+  ORDER · {{ event.order_id }}
+</p>

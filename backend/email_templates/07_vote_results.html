@@ -1,0 +1,17 @@
+<!-- Klaviyo metric: "Vote Results"
+     Event properties: first_name, cycle_label, winner_title, winner_url, total_votes
+-->
+<p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#39D353;letter-spacing:0.15em;text-transform:uppercase;margin:0 0 12px;">// RESULTS · {{ event.cycle_label }}</p>
+<h1 style="font-family:'Space Grotesk',Helvetica,Arial,sans-serif;font-size:30px;line-height:1.1;font-weight:700;margin:0 0 16px;">
+  The community picked: {{ event.winner_title }}.
+</h1>
+<p style="margin:0 0 20px;color:#F0F0EE;">
+  {{ event.total_votes }} subscribers voted. We're sourcing components now — kits ship in two months.
+</p>
+<a href="{{ event.winner_url }}"
+   style="display:inline-block;background:#E8510A;color:#0D1117;font-weight:600;font-size:14px;padding:12px 22px;text-decoration:none;">
+  See the project →
+</a>
+<p style="margin:24px 0 0;color:#8B949E;font-size:13px;">
+  Want it sooner? You can swap the current month's kit for any past project on your account page.
+</p>

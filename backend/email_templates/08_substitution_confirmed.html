@@ -1,0 +1,18 @@
+<!-- Klaviyo metric: "Substitution Confirmed"
+     Event properties: first_name, original_title, substituted_title, cycle_label
+-->
+<p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#39D353;letter-spacing:0.15em;text-transform:uppercase;margin:0 0 12px;">// SUBSTITUTION LOCKED</p>
+<h1 style="font-family:'Space Grotesk',Helvetica,Arial,sans-serif;font-size:28px;line-height:1.15;font-weight:700;margin:0 0 16px;">
+  You're getting {{ event.substituted_title }} this month.
+</h1>
+<p style="margin:0 0 16px;color:#F0F0EE;">
+  We've swapped out the active kit ({{ event.original_title }}) for the one you picked.
+  Same price, same shipping speed — different project.
+</p>
+<p style="margin:0 0 8px;color:#8B949E;font-size:13px;font-family:'JetBrains Mono',monospace;letter-spacing:0.05em;">
+  CYCLE · {{ event.cycle_label }}
+</p>
+<a href="{{ organization.url|default:'https://dropkit.dev' }}/account"
+   style="display:inline-block;margin-top:16px;background:#E8510A;color:#0D1117;font-weight:600;font-size:14px;padding:12px 22px;text-decoration:none;">
+  View my account →
+</a>

@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 5 — backend-only verification of the new Waitlist+Referral program (name required, idempotency, self-ref guard, priority/free-month rules), public Leaderboard privacy redaction, /launch-mode flags under placeholder creds, Shopify Customer OAuth 503 fallback, /substitutions/options rotation rule (in-stock past + 6-month edge), and /dev/stats projection fields. 14/14 pytest cases PASS. Klaviyo no-op confirmed — joining the waitlist succeeds without any exception while fire-and-forget Klaviyo calls log .debug 'not configured' and return None.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "ALL /api/* via REACT_APP_BACKEND_URL (https://mvp-planner-6.preview.emergentagent.com)",
+        "issue": "Public ingress returns 404 'page not found' from Cloudflare for every /api/* path (e.g. /api/launch-mode, /api/waitlist, /api/auth/me). Local http://localhost:8001 serves the same routes with 200. Root cause is the preview ingress / Cloudflare routing — NOT a code defect. Verified with curl. Tests therefore had to run against http://localhost:8001. The frontend at the same host loads fine (200 on '/'), only /api/* is broken externally.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test_iter4.py",
+    "/app/test_reports/pytest/iter4_results.xml"
+  ],
+  "action_items": [
+    "Investigate why the public preview URL https://mvp-planner-6.preview.emergentagent.com/api/* returns 404 (Cloudflare / ingress / route). The backend is healthy on localhost:8001; this is purely an ingress mapping issue and will block the FE from talking to the BE in the preview environment.",
+    "Consider adding an explicit FastAPI healthcheck route at /api/health to make ingress validation trivial.",
+    "(Low) routes_public.py leaderboard exposes the referrer's `paidReferralCount` directly — fine for product, but if you ever want to keep that private from competitors, scrub it.",
+    "(Low) waitlist_status returns the referrer's `email` and `name` — this is the owner-status endpoint (looked up by their own code) so it's not a privacy bug, but consider rate-limiting / not advertising the URL so codes can't be enumerated."
+  ],
+  "critical_code_review_comments": [
+    "routes_public.py:_grant_free_month_if_earned is only invoked from the orders/paid webhook AFTER incrementing paidReferralCount, AND only when the referrer is themselves subscriptionStatus=active. Good — matches spec.",
+    "routes_public.py:waitlist join is correctly idempotent via $setOnInsert + $set, and self-ref is blocked by the `ref_doc.get('email') != payload.email` check (verified).",
+    "routes_public.py:leaderboard pipeline aggregates `referredByCode` → counts and redacts names to 'First L.' — no email/code in payload (verified).",
+    "routes_public.py:substitution_options applies in-stock OR sixth-month rule via ageMonths == 6 — strict equality means a project hits a one-month visibility window. Spec calls this 'last chance', so OK, but be aware the window is exactly 30-ish days (no slack). If projects need to be visible for the *whole* 6th month, consider age_months in (5,6) or similar.",
+    "Klaviyo fire-and-forget gracefully no-ops when KLAVIYO_API_KEY is placeholder (verified by joining waitlist with no exceptions/logs). create_task is correctly wrapped to surface errors only via add_done_callback.",
+    "Shopify customer OAuth /auth/shopify/login correctly returns 503 when creds are placeholders (verified).",
+    "routes_webhooks._grant_free_month_if_earned will silently swallow Shopify create_referral_discount_code exceptions and still mark rewardGranted=True with rewardShopifyResult=None. That's fine in dev, but in production a failed discount-code creation should probably retry or alert — consider not setting rewardGranted until Shopify confirms.",
+    "models.WaitlistJoin uses `name: str = Field(min_length=1)` which makes the 422 on missing/empty name work correctly via pydantic (verified)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test_iter4.py"
+  ],
+  "success_rate": {"backend": "100% (14/14 against localhost)", "frontend": "skipped (backend-only request)"},
+  "test_credentials": "dev@dropkit.dev / dropkit-dev-2026 (role=dev). Admin token: dropkit-admin-dev-token. (Admin token endpoints not exercised in this iter — focus was the new waitlist/referral surface.)",
+  "seed_data_creation": "Pytest created throw-away waitlist rows + 4 throw-away projects (slug prefix TEST_iter4_) and exercised them in the rotation test. Test session fixture cleans them on teardown; verified zero remaining via mongosh after the run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run: BACKEND_TEST_URL=http://localhost:8001 MONGO_URL=mongodb://localhost:27017 DB_NAME=dropkit pytest /app/backend/tests/backend_test_iter4.py -v. The dev_session fixture builds a Bearer token directly via auth.create_access_token because the login cookie has Secure=true (APP_URL is https) and won't carry over http://localhost. If the public URL ingress is restored, you can drop BACKEND_TEST_URL and rerun — every test should still pass.",
+  "rca_of_the_issue": "Public preview URL 404 on /api/*: backend is healthy on localhost:8001 (verified via supervisorctl + direct curl), but the Cloudflare/k8s ingress in front of mvp-planner-6.preview.emergentagent.com returns 'cf-cache-status: DYNAMIC' 404 'page not found' for any /api/* path. Frontend '/' loads (200). This rules out the backend process and points at the ingress routing rule that should forward /api/* to port 8001. Not fixable from within the workspace — needs platform-side ingress check."
+}

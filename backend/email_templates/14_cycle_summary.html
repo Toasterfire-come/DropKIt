@@ -1,0 +1,15 @@
+<div style="font-family:Inter,system-ui,sans-serif;color:#F0F0EE;">
+  <h1 style="font-size:24px;margin:0 0 12px;letter-spacing:-0.01em;">{{ cycle_label }} · cycle closed</h1>
+  <p>Here's the snapshot for the cycle that just ended.</p>
+  <table cellpadding="10" style="border-collapse:collapse;width:100%;font-family:ui-monospace,monospace;font-size:13px;border:1px solid #30363D;">
+    <tr><td>Orders shipped</td><td align="right"><strong>{{ orders_shipped }}</strong></td></tr>
+    <tr><td>Gross revenue</td><td align="right"><strong>${{ gross_revenue }}</strong></td></tr>
+    <tr><td>Refunds issued</td><td align="right">${{ refunds }}</td></tr>
+    <tr><td>Net revenue</td><td align="right"><strong>${{ net_revenue }}</strong></td></tr>
+    <tr><td>Substitutions</td><td align="right">{{ substitutions }}</td></tr>
+    <tr><td>New subscribers</td><td align="right">+{{ new_subscribers }}</td></tr>
+    <tr><td>Churn (paused / cancelled)</td><td align="right">−{{ churned }}</td></tr>
+    <tr><td>Projected next month</td><td align="right"><strong>{{ projected_next }}</strong></td></tr>
+  </table>
+  <p style="margin-top:20px;">Open the dev panel → Today's queue to start the next cycle.</p>
+</div>

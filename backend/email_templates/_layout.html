@@ -1,0 +1,51 @@
+<!--
+  DropKit base layout. Drop the body of any specific template inside
+  the {% block body %}…{% endblock %} marker (Klaviyo's drag-and-drop
+  editor accepts raw HTML in a Custom HTML block; for full design control,
+  paste the table-based markup directly).
+
+  Tokens used across all emails (kept inline-safe for email clients):
+    --pcb #0D1117  Deep PCB / page bg
+    --carbon #161B22 card / content bg
+    --warm #F0F0EE  body text
+    --cool #8B949E  meta text
+    --circuit #E8510A primary / CTA
+    --flux #39D353  success
+    --border #30363D
+-->
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DropKit</title>
+  </head>
+  <body style="margin:0;padding:0;background:#0D1117;font-family:Inter,system-ui,Helvetica,Arial,sans-serif;color:#F0F0EE;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#0D1117;padding:40px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="max-width:560px;background:#161B22;border:1px solid #30363D;">
+            <tr>
+              <td style="padding:28px 32px;border-bottom:1px solid #30363D;">
+                <div style="font-family:'Space Grotesk',Helvetica,Arial,sans-serif;font-weight:700;font-size:22px;letter-spacing:-0.01em;">
+                  Drop<span style="color:#E8510A;">Kit</span>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px;font-size:15px;line-height:1.6;color:#F0F0EE;">
+                {% block body %}{% endblock %}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px;border-top:1px solid #30363D;font-family:'JetBrains Mono',monospace;font-size:11px;color:#8B949E;letter-spacing:0.05em;">
+                © DropKit · MIT / CC BY-SA · United States<br/>
+                <a href="{{ unsubscribe_link }}" style="color:#8B949E;text-decoration:underline;">Unsubscribe</a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

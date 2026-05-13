@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 3 (iter4 testing) — full backend + frontend verification of new EasyPost / Stripe Tax / Gmail / checkout / dev-panel surfaces. Backend: 18/18 pytest cases PASS after a 1-line ObjectId-serialization fix in /api/dev/shipping/labels. Frontend: header CTA replaced with Join Waitlist + modal, /signup redirects to /subscribe, /subscribe shows correct waitlist-mode copy, /apps/makerbox/projects renders 6-block Current grid with UPCOMING placeholders + All projects section, /dev panel shows the three required tabs (Controls/Email blast/Orders). UI mode confirmed at 'waitlist'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/dev/shipping/labels", "issue": "Was returning 500 — Mongo insert_one mutates the doc to include ObjectId _id which FastAPI then failed to JSON-serialize. Fixed in /app/backend/routes_dev.py:97 by doc.pop('_id', None) before return."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "WaitlistModal", "issue": "Modal container lacks role='dialog' (or aria-modal) — affects a11y + testability; suggest adding role='dialog' and data-testid='waitlist-modal' / 'waitlist-modal-email' / 'waitlist-modal-submit'.", "selector": "(none — has no role)", "priority": "LOW"},
+      {"component": "Layout header", "issue": "Join Waitlist button missing data-testid (expected data-testid='header-join-waitlist').", "selector": "header button:has-text('Join Waitlist')", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test_iter3.py",
+    "/app/test_reports/pytest/iter3_results.xml"
+  ],
+  "action_items": [
+    "Add role='dialog' + data-testid attrs to WaitlistModal and header Join Waitlist button for testability/a11y (low-risk).",
+    "Optional: cover the /subscribe live-mode quote flow with an automated test (it requires toggling UI mode + filling 6 fields; manual smoke recommended after this iter)."
+  ],
+  "critical_code_review_comments": [
+    "routes_dev.py buy_label endpoint had ObjectId leak (fixed). The same pattern of returning a mutated insert doc exists in shipping_quote and several other write paths — consider a small helper that strips _id and adds str id consistently (DRY).",
+    "routes_dev.py shipping_quote ignores payload.order_id — order_id is required by the pydantic model but never validated against db.orders. Either drop the field or validate it (and 404 on miss) so the FE/BE contract stays honest.",
+    "routes_checkout.py: SUBSCRIPTION_PRICE_CENTS is hardcoded at 4000. Move to settings/env for parity with Shopify product price.",
+    "gmail_service.send_blast in placeholder mode skips actual send but still counts skipped/total — verified working. When real creds land, ensure failed-email tracking captures address-level errors.",
+    "Frontend WaitlistModal could not be located by role='dialog' — using a plain div for the modal hurts both a11y and Playwright robustness."
+  ],
+  "updated_files": [
+    "/app/backend/routes_dev.py",
+    "/app/backend/tests/backend_test_iter3.py"
+  ],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "100% on all flows attempted (modal, signup→subscribe redirect, /subscribe copy, ProjectCatalog two-section layout w/ UPCOMING placeholders, /dev three tabs)"},
+  "test_credentials": "dev@dropkit.dev / dropkit-dev-2026 (role=dev), X-Admin-Token: dropkit-admin-dev-token",
+  "seed_data_creation": "Created throw-away test users/waitlist rows/quotes/email_blasts during pytest + UI runs; all cleaned via Mongo deleteMany filters on iter3_ prefix + TEST_iter3 subject + buyer@example. UI mode left at 'waitlist'.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend regression suite for iter3 lives at /app/backend/tests/backend_test_iter3.py (18 cases, all green). Iter2 suite (16 cases) still green. The /api/dev/shipping/labels endpoint will only succeed against an existing order in db.orders (iter1 webhook seeded shopifyOrderId=999888777). To exercise /subscribe live-mode quote flow end-to-end via UI, toggle ui-mode to 'live' via /dev → Controls tab → click toggle, then visit /subscribe; reset after.",
+  "rca_of_the_issue": "RCA for /api/dev/shipping/labels 500: motor's insert_one() mutates the input doc to add `_id: ObjectId(...)`. The handler returned that same doc, and FastAPI's jsonable_encoder cannot serialize ObjectId, raising ValueError([TypeError(\\\"'ObjectId' object is not iterable\\\"), TypeError('vars() argument must have __dict__ attribute')]). Fix: pop _id and surface str(inserted_id) under key 'id' (already done for the id key, just needed the pop). One-line patch in routes_dev.py:97."
+}

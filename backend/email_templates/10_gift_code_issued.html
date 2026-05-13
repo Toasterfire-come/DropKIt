@@ -1,0 +1,27 @@
+<!-- Klaviyo metric: "Gift Code Issued"
+     Event properties: gift_code, duration_months, redeem_url
+-->
+<p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#E8510A;letter-spacing:0.15em;text-transform:uppercase;margin:0 0 12px;">// A GIFT FOR YOU</p>
+<h1 style="font-family:'Space Grotesk',Helvetica,Arial,sans-serif;font-size:30px;line-height:1.1;font-weight:700;margin:0 0 16px;">
+  Someone just gave you {{ event.duration_months }} month{{ event.duration_months|pluralize }} of DropKit.
+</h1>
+<p style="margin:0 0 20px;color:#F0F0EE;">
+  Open-source hardware projects, delivered. Each kit comes with a board, all components,
+  and a full guide. Redeem your gift to pick where it ships.
+</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#21262D;border:1px solid #E8510A;margin:0 0 24px;">
+  <tr>
+    <td align="center" style="padding:24px 16px;">
+      <p style="margin:0 0 8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#8B949E;letter-spacing:0.15em;text-transform:uppercase;">GIFT CODE</p>
+      <p style="margin:0;font-family:'JetBrains Mono',monospace;font-size:24px;color:#E8510A;font-weight:600;letter-spacing:0.06em;">
+        {{ event.gift_code }}
+      </p>
+    </td>
+  </tr>
+</table>
+
+<a href="{{ event.redeem_url }}"
+   style="display:inline-block;background:#E8510A;color:#0D1117;font-weight:600;font-size:14px;padding:12px 22px;text-decoration:none;">
+  Redeem my gift →
+</a>

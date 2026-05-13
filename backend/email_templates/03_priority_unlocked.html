@@ -1,0 +1,18 @@
+<!-- Klaviyo metric: "Priority Unlocked"
+     Event properties: first_name, referral_code
+-->
+<p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#39D353;letter-spacing:0.15em;text-transform:uppercase;margin:0 0 12px;">// PRIORITY UNLOCKED</p>
+<h1 style="font-family:'Space Grotesk',Helvetica,Arial,sans-serif;font-size:30px;line-height:1.1;font-weight:700;margin:0 0 16px;">
+  You're at the front of the line, {{ event.first_name|default:'Maker' }}.
+</h1>
+<p style="margin:0 0 16px;color:#F0F0EE;">
+  Three waitlist signups through your link — that earns you <strong>priority access</strong> when DropKit opens for orders.
+  When subscriptions go live, you'll get the email first.
+</p>
+<p style="margin:0 0 24px;color:#F0F0EE;">
+  Want to keep going? <strong>Five paying referrals</strong> after launch unlocks a <span style="color:#E8510A;">free month</span> of DropKit.
+</p>
+<a href="{{ organization.url|default:'https://dropkit.dev' }}/r/{{ event.referral_code }}"
+   style="display:inline-block;background:#E8510A;color:#0D1117;font-weight:600;font-size:14px;padding:12px 22px;text-decoration:none;">
+  Track my referrals →
+</a>

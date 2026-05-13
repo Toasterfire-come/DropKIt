@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /dev
+Disallow: /dev/
+Disallow: /account
+Disallow: /api/
+Disallow: /signin
+Disallow: /signup
+
+# Sitemaps
+Sitemap: https://dropkit.marketing/sitemap.xml
+
+# Crawl-friendly rate
+Crawl-delay: 1

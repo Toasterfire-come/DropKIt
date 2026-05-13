@@ -1,0 +1,32 @@
+{
+  "summary": "Iteration 3 — backend retest after sparse-null index fix. All 16/16 tests in /app/backend/tests/backend_test_iter2.py now PASS. The critical bug from iter2 (POST /api/auth/register returning 500 on every signup past the first user due to sparse unique index on shopifyCustomerId colliding on explicit null) is fully resolved. Verified end-to-end: (a) 2 fresh registrations with distinct emails both return 200 and set access_token+refresh_token cookies; (b) duplicate email returns 409; (c) dev login returns role=dev and cookies; (d) /api/ui-mode public defaults to waitlist; (e) POST /api/ui-mode unauth→401, non-dev→403, dev→toggles and persists then reverted to waitlist; (f) /api/dev/stats requires dev role; (g) /api/account/subscription returns inactive when no contract; pause without contract returns 404. Index inspection confirms shopifyCustomerId_1 now uses partialFilterExpression={'shopifyCustomerId':{'$type':'string'}}. routes_auth.py no longer inserts shopifyCustomerId:None into user_doc on placeholder Shopify mode. Backend success rate: 100%.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test_iter2.py",
+    "/app/test_reports/pytest/iter2_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fix verified in /app/backend/db.py:23-26 — partialFilterExpression replaces sparse=True, correct Mongo pattern.",
+    "Fix verified in /app/backend/routes_auth.py:74-81 — shopifyCustomerId field only set when Shopify creds are real and a non-empty id comes back; null collisions impossible.",
+    "Minor (carried over, non-blocking): /app/backend/auth.py — cookie `secure` flag inferred from APP_URL.startswith('http://'); preview runs https but APP_URL .env value should be confirmed before production. Consider explicit COOKIE_SECURE env flag.",
+    "Minor (carried over): AuthProvider on first page load fires GET /api/auth/me which returns 401 for guests and logs as console error — treat 401 as logged-out without error logging.",
+    "/app/backend/db.py:27 — users.email index is `unique=True, sparse=True`; email is always required at register time so no collision risk today, but for consistency consider partialFilterExpression too."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "not tested this iteration (scope: backend only)"},
+  "test_credentials": "Dev seeded account: dev@dropkit.dev / dropkit-dev-2026 (role=dev). Admin token X-Admin-Token: dropkit-admin-dev-token.",
+  "seed_data_creation": "Test users created during pytest run were cleaned up (deleted 6 users matching /dropkit-test|iter2|sparse_/). login_attempts cleared. UI mode confirmed back at 'waitlist'. Remaining users in DB: dev@dropkit.dev + webhookuser@dropkit.test (iter1 webhook user with real shopifyCustomerId).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter2 backend suite is now green (16/16). Use REACT_APP_BACKEND_URL from frontend/.env when running pytest. Frontend retest can proceed; signup UI flow was the only blocked piece in iter2 and is now unblocked at the API layer.",
+  "rca_of_the_issue": "RCA: previous iter2 failure was caused by `db.users.shopifyCustomerId` index being created with `sparse=True, unique=True`. Sparse indexes still index documents where the field is explicitly set to null — they only skip documents where the field is absent. The register handler always inserted `shopifyCustomerId: None` under placeholder Shopify mode, so every signup past the first one collided on null and Mongo raised E11000 → FastAPI 500. Fix applied across two layers (defence in depth): (1) /app/backend/db.py recreates the index with partialFilterExpression={'shopifyCustomerId':{'$type':'string'}} so only string values are indexed; (2) /app/backend/routes_auth.py no longer inserts the shopifyCustomerId key at all under placeholder Shopify mode — it is only set when a real customer id is returned from the Admin API. The old index was dropped manually before ensure_indexes() recreated it on startup. Verified by curl: register A=200, register B=200, register A again=409."
+}

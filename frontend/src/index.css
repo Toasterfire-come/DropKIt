@@ -1,0 +1,256 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --circuit: #e8510a;
+  --pcb: #0d1117;
+  --carbon: #161b22;
+  --graphite: #21262d;
+  --warm: #f0f0ee;
+  --cool: #8b949e;
+  --border: #30363d;
+  --flux: #39d353;
+  --trace-blue: #58a6ff;
+  --short: #ff4444;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  background: var(--pcb);
+  color: var(--warm);
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100%;
+}
+
+::selection {
+  background: var(--circuit);
+  color: var(--pcb);
+}
+
+/* Custom utility classes */
+.font-display {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+}
+.font-mono {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* PCB circuit trace background */
+.circuit-bg {
+  position: relative;
+  isolation: isolate;
+}
+.circuit-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'><g fill='none' stroke='%23E8510A' stroke-width='1'><path d='M0 40h60M60 40v40M60 80h60M120 80v60M120 140h80M40 200v-60M40 140h80M200 40v160M0 110h40M150 0v40M150 40h70' /><circle cx='60' cy='40' r='3' fill='%23E8510A'/><circle cx='60' cy='80' r='3' fill='%23E8510A'/><circle cx='120' cy='80' r='3' fill='%23E8510A'/><circle cx='120' cy='140' r='3' fill='%23E8510A'/><circle cx='40' cy='140' r='3' fill='%23E8510A'/><circle cx='150' cy='40' r='3' fill='%23E8510A'/></g></svg>");
+  opacity: 0.06;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Trace divider — vertical SVG between columns */
+.trace-divider {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='2' height='100' viewBox='0 0 2 100'><line x1='1' y1='0' x2='1' y2='100' stroke='%23E8510A' stroke-width='1' stroke-dasharray='4 4'/></svg>");
+  background-repeat: repeat-y;
+}
+
+/* Card */
+.card {
+  background: var(--carbon);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  transition: border-color 200ms ease-out, transform 200ms ease-out;
+}
+.card:hover {
+  border-color: var(--circuit);
+}
+
+/* Primary CTA button */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: var(--circuit);
+  color: var(--pcb);
+  font-weight: 600;
+  padding: 0.85rem 1.6rem;
+  border-radius: 2px;
+  letter-spacing: 0.01em;
+  transition: box-shadow 150ms ease-out, transform 150ms ease-out, background 150ms ease-out;
+  border: 1px solid var(--circuit);
+}
+.btn-primary:hover {
+  box-shadow: 0 0 16px rgba(232, 81, 10, 0.55);
+  transform: translateY(-1px);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.6rem;
+  border: 1px solid var(--border);
+  color: var(--warm);
+  background: transparent;
+  border-radius: 2px;
+  transition: all 150ms ease-out;
+}
+.btn-ghost:hover {
+  border-color: var(--circuit);
+  color: var(--circuit);
+}
+
+/* Badge / chip — terminal-style status with colored left border */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.7rem;
+  border-left: 3px solid var(--cool);
+  background: rgba(33, 38, 45, 0.5);
+  color: var(--warm);
+}
+.chip-orange {
+  border-left-color: var(--circuit);
+  color: var(--circuit);
+}
+.chip-green {
+  border-left-color: #39d353;
+  color: #39d353;
+}
+.chip-blue {
+  border-left-color: #58a6ff;
+  color: #58a6ff;
+}
+.chip-red {
+  border-left-color: #ff4444;
+  color: #ff4444;
+}
+
+/* Numbered step chip */
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: var(--pcb);
+  border: 1px solid var(--circuit);
+  color: var(--circuit);
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 600;
+  border-radius: 2px;
+}
+
+/* PCB trace-fill progress bar */
+.trace-progress {
+  position: relative;
+  height: 6px;
+  background: var(--graphite);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.trace-progress > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, var(--circuit), #f5751f);
+  box-shadow: 0 0 8px rgba(232, 81, 10, 0.5);
+  transition: width 600ms ease-out;
+}
+
+/* Input */
+.input {
+  width: 100%;
+  background: var(--graphite);
+  border: 1px solid var(--border);
+  color: var(--warm);
+  padding: 0.75rem 1rem;
+  border-radius: 2px;
+  font-family: "Inter", sans-serif;
+  transition: border-color 150ms ease-out;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--circuit);
+  box-shadow: 0 0 0 2px rgba(232, 81, 10, 0.15);
+}
+.input::placeholder {
+  color: var(--cool);
+}
+
+/* Section header */
+.section-label {
+  font-family: "JetBrains Mono", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.75rem;
+  color: var(--circuit);
+}
+
+/* Animated entrance */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.reveal {
+  animation: fadeUp 600ms ease-out both;
+}
+.reveal-delay-1 { animation-delay: 100ms; }
+.reveal-delay-2 { animation-delay: 200ms; }
+.reveal-delay-3 { animation-delay: 300ms; }
+
+/* Glow pulse on hero accent */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 16px rgba(232, 81, 10, 0.4); }
+  50% { box-shadow: 0 0 24px rgba(232, 81, 10, 0.7); }
+}
+.pulse-glow { animation: pulseGlow 2.6s ease-in-out infinite; }
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--pcb); }
+::-webkit-scrollbar-thumb { background: var(--graphite); border-radius: 1px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border); }
+
+/* Horizontal scroll snap row */
+.scroll-row {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 1rem;
+  scroll-padding-left: 1.5rem;
+}
+.scroll-row > * {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+}

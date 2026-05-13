@@ -1,0 +1,17 @@
+<!-- Klaviyo metric: "Gift Purchased"
+     Event properties: buyer_first_name, recipient_email, duration_months, order_id
+-->
+<p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#E8510A;letter-spacing:0.15em;text-transform:uppercase;margin:0 0 12px;">// GIFT ON ITS WAY</p>
+<h1 style="font-family:'Space Grotesk',Helvetica,Arial,sans-serif;font-size:28px;line-height:1.15;font-weight:700;margin:0 0 16px;">
+  Thanks for gifting DropKit{% if event.buyer_first_name %}, {{ event.buyer_first_name }}{% endif %}.
+</h1>
+<p style="margin:0 0 16px;color:#F0F0EE;">
+  We just sent {{ event.recipient_email }} a redemption code for {{ event.duration_months }} month{{ event.duration_months|pluralize }} of DropKit.
+  They'll pick their shipping address when they redeem, then their first kit ships next cycle.
+</p>
+<p style="margin:0 0 8px;color:#8B949E;font-size:13px;font-family:'JetBrains Mono',monospace;letter-spacing:0.05em;">
+  ORDER · {{ event.order_id }}
+</p>
+<p style="margin:24px 0 0;color:#8B949E;font-size:13px;">
+  Heads up: if they haven't redeemed in 30 days, we'll send a reminder.
+</p>

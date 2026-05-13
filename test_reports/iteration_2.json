@@ -1,0 +1,59 @@
+{
+  "summary": "Iteration 2 testing: 11/16 backend tests pass; 5 fail due to a single critical bug — POST /api/auth/register returns 500 on every new signup. Root cause: the MongoDB `users.shopifyCustomerId` unique index was created with sparse=True, but the registration handler always sets `shopifyCustomerId: None` (placeholder Shopify mode). Sparse indexes still index explicit null values, so the second user that has null collides with the first (the seeded dev user). This cascades to break /api/account/subscription tests and the non-dev /ui-mode test because they all need a fresh user account. Frontend smoke testing passes: header/footer copy correct (Sign in/Sign up shown when logged out, no Account/Redeem in nav; Instagram/TikTok/YouTube replace Reddit), dev login succeeds and routes to /account, /dev panel renders site-controls + stats, /about /subscribe /gift /account all render correct waitlist-mode content. Signup UI flow itself is unusable because of the backend 500.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/auth/register",
+        "issue": "Returns 500 (pymongo DuplicateKeyError E11000) for ALL new registrations after the first one. Mongo index `shopifyCustomerId_1` is `unique:true, sparse:true`, but sparse does not exclude explicit `null` values — only missing fields. The handler in routes_auth.py:67 always inserts `shopifyCustomerId: None` when Shopify creds start with PLACEHOLDER, so every user past the dev seed collides. Fix options: (a) in /app/backend/db.py change `db.users.create_index('shopifyCustomerId', unique=True, sparse=True)` to `unique=True, partialFilterExpression={'shopifyCustomerId': {'$type': 'string'}}` and DROP the existing index first (`db.users.dropIndex('shopifyCustomerId_1')` then restart so ensure_indexes recreates it); OR (b) in routes_auth.py only add the shopifyCustomerId field when a real id was returned (don't insert the null key).",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "POST /api/auth/register",
+        "issue": "Same root cause as above prevents tests for duplicate-409 and non-dev-403 ui-mode and /account flows from being validated end-to-end."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Signup UI -> POST /api/auth/register",
+        "issue": "UI form submits but backend returns 500 (see critical bug). Users cannot create accounts at all. /signup short-password validation appears wired (no submission to server).",
+        "affected_selectors": ["form on /signup", "button[type='submit']"]
+      }
+    ],
+    "design_issues": [
+      {"screen": "Home (logged out)", "issues": ["Two console 401s for /api/auth/me on initial load — expected (AuthProvider probes session) but noisy; could be silenced by treating 401 as logged-out state without logging."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test_iter2.py",
+    "/app/test_reports/pytest/iter2_results.xml"
+  ],
+  "action_items": [
+    "FIX CRITICAL: Drop and recreate the users.shopifyCustomerId index using partialFilterExpression instead of sparse — OR omit the shopifyCustomerId field in user_doc when Shopify is in placeholder mode (preferred quick fix in /app/backend/routes_auth.py). Then redeploy and re-run /app/backend/tests/backend_test_iter2.py.",
+    "After the fix, manually verify: (1) POST /api/auth/register x2 with different emails both succeed; (2) /api/auth/me returns user; (3) /signup UI redirects to /account; (4) POST /api/ui-mode by non-dev returns 403."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/db.py:21 — `sparse=True` on a unique index does NOT exclude explicit null values; this is a common Mongo footgun. Use `partialFilterExpression={'shopifyCustomerId': {'$type': 'string'}}` instead. Same caveat may apply to `users.email` index, though email is always required so unaffected today.",
+    "/app/backend/routes_auth.py:67 — Inserting `shopifyCustomerId: None` unconditionally is what triggers the index collision. Safer pattern: only add the key when a real Shopify id is fetched. Bonus: this also avoids the `null` value polluting later queries.",
+    "/app/backend/auth.py:104 — `secure = not settings.APP_URL.startswith('http://')` infers cookie security from APP_URL but the preview domain runs on https while APP_URL in .env points to a different preview host; consider an explicit COOKIE_SECURE env flag.",
+    "/app/backend/routes_auth.py — `_user_out` does a defensive `if 'id' in user` check but the surrounding code mutates `user['id']` itself; helper is fine, but the duplicate `str(user['_id'])` branch is unreachable in current flow.",
+    "AuthProvider on first page load fires GET /api/auth/me which returns 401 for guests and logs to console as an error — consider 401 = logged-out (no console error)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test_iter2.py"
+  ],
+  "success_rate": {
+    "backend": "69% (11/16) — all 5 failures stem from the single register 500 bug",
+    "frontend": "~90% (all auth-aware UI bits OK, signup flow blocked by backend)"
+  },
+  "test_credentials": "Dev seeded account works: dev@dropkit.dev / dropkit-dev-2026 (role=dev). Admin token X-Admin-Token: dropkit-admin-dev-token still works for project CRUD.",
+  "seed_data_creation": "Cleaned up: removed test users with emails matching /dropkit-test/ and /iter2/, cleared login_attempts, cleared waitlist test rows. UI mode reset to 'waitlist'. Remaining users in DB: dev@dropkit.dev (role=dev) + webhookuser@dropkit.test (from iter1 webhook test, has real shopifyCustomerId).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run /app/backend/tests/backend_test_iter2.py after the register fix is shipped — all 16 tests should pass. Note: REACT_APP_BACKEND_URL must be exported in env when invoking pytest (the test file no longer hardcodes a default). The dev user is auto-seeded by server startup; if password is changed in .env, seed_dev_user updates it idempotently. UI mode default is 'waitlist' — backend test toggles to 'live' then back, leaving DB at 'waitlist'.",
+  "rca_of_the_issue": "Reproduction: `curl -X POST $BASE/api/auth/register -d '{\"email\":\"a@b.com\",\"password\":\"password123\"}' -H 'Content-Type: application/json'` returns 500. Backend log shows `pymongo.errors.DuplicateKeyError: E11000 duplicate key error collection: dropkit.users index: shopifyCustomerId_1 dup key: { shopifyCustomerId: null }`. Cause: index created with sparse=True still indexes explicit null. Mitigation: either (a) drop & recreate index with partialFilterExpression, or (b) omit shopifyCustomerId from user_doc until a real Shopify id is obtained."
+}

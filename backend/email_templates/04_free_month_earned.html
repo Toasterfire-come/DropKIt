@@ -1,0 +1,35 @@
+<!-- Klaviyo metric: "Earned Free Month"
+     Event properties: first_name, referral_code, discount_code,
+                       discount_amount_cents, discount_expires_at
+-->
+<p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#E8510A;letter-spacing:0.15em;text-transform:uppercase;margin:0 0 12px;">// REWARD UNLOCKED</p>
+<h1 style="font-family:'Space Grotesk',Helvetica,Arial,sans-serif;font-size:32px;line-height:1.05;font-weight:700;margin:0 0 16px;">
+  One month on us, {{ event.first_name|default:'Maker' }}.
+</h1>
+<p style="margin:0 0 20px;color:#F0F0EE;">
+  Five of your referrals subscribed. That earns you a full month of DropKit, free.
+  Use the code below on your next billing cycle — it's locked to your customer account.
+</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#21262D;border:1px solid #E8510A;margin:0 0 24px;">
+  <tr>
+    <td align="center" style="padding:24px 16px;">
+      <p style="margin:0 0 8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#8B949E;letter-spacing:0.15em;text-transform:uppercase;">YOUR CODE</p>
+      <p style="margin:0;font-family:'JetBrains Mono',monospace;font-size:24px;color:#E8510A;font-weight:600;letter-spacing:0.06em;">
+        {{ event.discount_code }}
+      </p>
+      <p style="margin:14px 0 0;font-size:13px;color:#8B949E;">
+        Worth ${{ event.discount_amount_cents|divisibleby:100|default:event.discount_amount_cents }}/month off · valid through {{ event.discount_expires_at|slice:":10" }}
+      </p>
+    </td>
+  </tr>
+</table>
+
+<a href="{{ organization.url|default:'https://dropkit.dev' }}/account"
+   style="display:inline-block;background:#E8510A;color:#0D1117;font-weight:600;font-size:14px;padding:12px 22px;text-decoration:none;">
+  Apply it at checkout →
+</a>
+
+<p style="margin:24px 0 0;color:#8B949E;font-size:13px;">
+  This is the start. Keep referring — every five paid sign-ups stacks another free month.
+</p>
