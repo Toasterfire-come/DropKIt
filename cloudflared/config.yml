@@ -1,0 +1,20 @@
+tunnel: dropkit-tunnel
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  # API routes go to backend
+  - hostname: dropkit.me
+    path: /api/*
+    service: http://backend:8000
+  
+  # Health check endpoint
+  - hostname: dropkit.me
+    path: /health
+    service: http://frontend:3000
+  
+  # Everything else goes to frontend
+  - hostname: dropkit.me
+    service: http://frontend:3000
+  
+  # Catch-all rule (required)
+  - service: http_status:404
