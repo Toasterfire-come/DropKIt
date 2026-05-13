@@ -11,10 +11,14 @@ from config import settings
 
 
 def _is_placeholder() -> bool:
+    # Check if EasyPost API key is missing or a placeholder
     return not settings.EASYPOST_API_KEY or settings.EASYPOST_API_KEY.startswith("PLACEHOLDER")
 
 
-def _client() -> easypost.EasyPostClient:
+def _client() -> Optional[easypost.EasyPostClient]:
+    """Returns an EasyPost client if configured, otherwise None."""
+    if _is_placeholder():
+        return None
     return easypost.EasyPostClient(settings.EASYPOST_API_KEY)
 
 
@@ -58,35 +62,43 @@ def create_shipment_with_rates(to_address: dict, parcel: Optional[dict] = None) 
         }
 
     cli = _client()
-    shipment = cli.shipment.create(
-        from_address=_from_address(),
-        to_address=to_address,
-        parcel=parcel or _default_parcel(),
-    )
-    rates = [
-        {
-            "id": r.id, "carrier": r.carrier, "service": r.service,
-            "rate": float(r.rate), "currency": r.currency,
-            "delivery_days": getattr(r, "est_delivery_days", None) or getattr(r, "delivery_days", None),
+    if not cli: # Should not happen if _is_placeholder is False, but good for safety
+        return {"shipment_id": None, "rates": [], "cheapest": None, "priority": None, "placeholder": True, "error": "EasyPost client not initialized"}
+
+    try:
+        shipment = cli.shipment.create(
+            from_address=_from_address(),
+            to_address=to_address,
+            parcel=parcel or _default_parcel(),
+        )
+        rates = [
+            {
+                "id": r.id, "carrier": r.carrier, "service": r.service,
+                "rate": float(r.rate), "currency": r.currency,
+                "delivery_days": getattr(r, "est_delivery_days", None) or getattr(r, "delivery_days", None),
+            }
+            for r in shipment.rates
+        ]
+        if not rates:
+            return {"shipment_id": shipment.id, "rates": [], "cheapest": None, "priority": None, "placeholder": False}
+
+        # Cheapest overall
+        cheapest = min(rates, key=lambda r: r["rate"])
+        same_carrier = [r for r in rates if r["carrier"] == cheapest["carrier"]]
+        faster_same_carrier = [r for r in same_carrier if r["rate"] > cheapest["rate"]]
+        priority = min(faster_same_carrier, key=lambda r: r["rate"]) if faster_same_carrier else cheapest
+
+        return {
+            "shipment_id": shipment.id,
+            "rates": rates,
+            "cheapest": cheapest,
+            "priority": priority,
+            "placeholder": False,
         }
-        for r in shipment.rates
-    ]
-    if not rates:
-        return {"shipment_id": shipment.id, "rates": [], "cheapest": None, "priority": None}
-
-    # Cheapest overall
-    cheapest = min(rates, key=lambda r: r["rate"])
-    same_carrier = [r for r in rates if r["carrier"] == cheapest["carrier"]]
-    faster_same_carrier = [r for r in same_carrier if r["rate"] > cheapest["rate"]]
-    priority = min(faster_same_carrier, key=lambda r: r["rate"]) if faster_same_carrier else cheapest
-
-    return {
-        "shipment_id": shipment.id,
-        "rates": rates,
-        "cheapest": cheapest,
-        "priority": priority,
-        "placeholder": False,
-    }
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Error creating EasyPost shipment: {e}")
+        return {"shipment_id": None, "rates": [], "cheapest": None, "priority": None, "placeholder": False, "error": str(e)}
 
 
 def buy_label(shipment_id: str, rate_id: str) -> Dict:
@@ -105,21 +117,28 @@ def buy_label(shipment_id: str, rate_id: str) -> Dict:
         }
 
     cli = _client()
-    shipment = cli.shipment.buy(id=shipment_id, rate={"id": rate_id})
-    label = shipment.postage_label
-    base = label.label_url if label else None
-    # Format conversions (EasyPost supports `convert` for ZPL/PNG; QR via generate_form)
-    return {
-        "shipment_id": shipment.id,
-        "rate_id": rate_id,
-        "tracking_code": shipment.tracking_code,
-        "label_pdf_url": base,
-        "label_zpl_url": (base + "?file_format=zpl") if base else None,
-        "label_qr_url": (base + "?file_format=png") if base else None,
-        "carrier": shipment.selected_rate.carrier if shipment.selected_rate else None,
-        "service": shipment.selected_rate.service if shipment.selected_rate else None,
-        "placeholder": False,
-    }
+    if not cli:
+        return {"shipment_id": shipment_id, "rate_id": rate_id, "placeholder": True, "error": "EasyPost client not initialized"}
+
+    try:
+        shipment = cli.shipment.buy(id=shipment_id, rate={"id": rate_id})
+        label = shipment.postage_label
+        base = label.label_url if label else None
+        # Format conversions (EasyPost supports `convert` for ZPL/PNG; QR via generate_form)
+        return {
+            "shipment_id": shipment.id,
+            "rate_id": rate_id,
+            "tracking_code": shipment.tracking_code,
+            "label_pdf_url": base,
+            "label_zpl_url": (base + "?file_format=zpl") if base else None,
+            "label_qr_url": (base + "?file_format=png") if base else None,
+            "carrier": shipment.selected_rate.carrier if shipment.selected_rate else None,
+            "service": shipment.selected_rate.service if shipment.selected_rate else None,
+            "placeholder": False,
+        }
+    except Exception as e:
+        print(f"Error buying EasyPost label: {e}")
+        return {"shipment_id": shipment_id, "rate_id": rate_id, "placeholder": False, "error": str(e)}
 
 
 def get_tracking(tracking_code: str, carrier: Optional[str] = None) -> Dict:
@@ -132,16 +151,24 @@ def get_tracking(tracking_code: str, carrier: Optional[str] = None) -> Dict:
             "placeholder": True,
         }
     cli = _client()
-    t = cli.tracker.create(tracking_code=tracking_code, carrier=carrier) if carrier else cli.tracker.create(tracking_code=tracking_code)
-    return {
-        "tracking_code": t.tracking_code,
-        "carrier": t.carrier,
-        "status": t.status,
-        "tracking_details": [
-            {"status": e.status, "message": e.message, "timestamp": str(e.datetime), "location": getattr(e, "location", None)}
-            for e in (t.tracking_details or [])
-        ],
-    }
+    if not cli:
+        return {"tracking_code": tracking_code, "carrier": carrier or "USPS", "status": "error", "tracking_details": [], "placeholder": True, "error": "EasyPost client not initialized"}
+
+    try:
+        t = cli.tracker.create(tracking_code=tracking_code, carrier=carrier) if carrier else cli.tracker.create(tracking_code=tracking_code)
+        return {
+            "tracking_code": t.tracking_code,
+            "carrier": t.carrier,
+            "status": t.status,
+            "tracking_details": [
+                {"status": e.status, "message": e.message, "timestamp": str(e.datetime), "location": getattr(e, "location", None)}
+                for e in (t.tracking_details or [])
+            ],
+            "placeholder": False,
+        }
+    except Exception as e:
+        print(f"Error getting EasyPost tracking: {e}")
+        return {"tracking_code": tracking_code, "carrier": carrier or "USPS", "status": "error", "tracking_details": [], "placeholder": False, "error": str(e)}
 
 
 def verify_address(address: dict) -> Dict:
@@ -159,37 +186,44 @@ def verify_address(address: dict) -> Dict:
             "placeholder": True,
         }
     cli = _client()
-    addr = cli.address.create_and_verify(
-        street1=address.get("street1", ""),
-        street2=address.get("street2"),
-        city=address.get("city", ""),
-        state=address.get("state", ""),
-        zip=address.get("zip", ""),
-        country=address.get("country", "US"),
-        name=address.get("name"),
-        phone=address.get("phone"),
-        email=address.get("email"),
-        verify_strict=["delivery"],
-    )
-    canonical = {
-        "name": getattr(addr, "name", address.get("name")),
-        "street1": addr.street1,
-        "street2": getattr(addr, "street2", None),
-        "city": addr.city,
-        "state": addr.state,
-        "zip": addr.zip,
-        "country": addr.country,
-        "phone": getattr(addr, "phone", address.get("phone")),
-    }
-    vfn = (getattr(addr, "verifications", None) or {}).get("delivery") or {}
-    issues = [{"code": e.get("code"), "message": e.get("message")} for e in (vfn.get("errors") or [])]
-    return {
-        "valid": bool(vfn.get("success")),
-        "canonical": canonical,
-        "issues": issues,
-        "easypost_address_id": addr.id,
-        "placeholder": False,
-    }
+    if not cli:
+        return {"valid": False, "canonical": address, "issues": [{"code": "CLIENT_ERROR", "message": "EasyPost client not initialized"}], "placeholder": True}
+
+    try:
+        addr = cli.address.create_and_verify(
+            street1=address.get("street1", ""),
+            street2=address.get("street2"),
+            city=address.get("city", ""),
+            state=address.get("state", ""),
+            zip=address.get("zip", ""),
+            country=address.get("country", "US"),
+            name=address.get("name"),
+            phone=address.get("phone"),
+            email=address.get("email"),
+            verify_strict=["delivery"],
+        )
+        canonical = {
+            "name": getattr(addr, "name", address.get("name")),
+            "street1": addr.street1,
+            "street2": getattr(addr, "street2", None),
+            "city": addr.city,
+            "state": addr.state,
+            "zip": addr.zip,
+            "country": addr.country,
+            "phone": getattr(addr, "phone", address.get("phone")),
+        }
+        vfn = (getattr(addr, "verifications", None) or {}).get("delivery") or {}
+        issues = [{"code": e.get("code"), "message": e.get("message")} for e in (vfn.get("errors") or [])]
+        return {
+            "valid": bool(vfn.get("success")),
+            "canonical": canonical,
+            "issues": issues,
+            "easypost_address_id": addr.id,
+            "placeholder": False,
+        }
+    except Exception as e:
+        print(f"Error verifying EasyPost address: {e}")
+        return {"valid": False, "canonical": address, "issues": [{"code": "VERIFICATION_ERROR", "message": str(e)}], "placeholder": False}
 
 
 def create_scan_form(shipment_ids: List[str]) -> Dict:
@@ -205,23 +239,34 @@ def create_scan_form(shipment_ids: List[str]) -> Dict:
             "placeholder": True,
         }
     cli = _client()
-    sf = cli.scan_form.create(shipments=[{"id": sid} for sid in shipment_ids])
-    return {
-        "id": sf.id,
-        "form_url": getattr(sf, "form_url", None) or getattr(sf, "form_file_type", None),
-        "tracking_codes": list(getattr(sf, "tracking_codes", []) or []),
-        "placeholder": False,
-    }
+    if not cli:
+        return {"id": None, "form_url": None, "tracking_codes": [], "placeholder": True, "error": "EasyPost client not initialized"}
+
+    try:
+        sf = cli.scan_form.create(shipments=[{"id": sid} for sid in shipment_ids])
+        return {
+            "id": sf.id,
+            "form_url": getattr(sf, "form_url", None) or getattr(sf, "form_file_type", None),
+            "tracking_codes": list(getattr(sf, "tracking_codes", []) or []),
+            "placeholder": False,
+        }
+    except Exception as e:
+        print(f"Error creating EasyPost scan form: {e}")
+        return {"id": None, "form_url": None, "tracking_codes": [], "placeholder": False, "error": str(e)}
 
 
 def download_label_pdf(label_pdf_url: str) -> Optional[bytes]:
     """Fetch an EasyPost label PDF into memory (for merging into batch PDFs)."""
     if not label_pdf_url:
         return None
+    # If it's a placeholder URL, we can't actually download it.
+    if label_pdf_url.startswith("https://example.com/"):
+        return None
     try:
         import httpx
         r = httpx.get(label_pdf_url, timeout=20.0, follow_redirects=True)
         r.raise_for_status()
         return r.content
-    except Exception:
+    except Exception as e:
+        print(f"Error downloading EasyPost label PDF: {e}")
         return None
