@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import api from "../lib/api";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
@@ -22,6 +22,7 @@ export default function Home() {
   return (
     <>
       {mode === "waitlist" ? <WaitlistHero /> : <Hero />}
+      {mode === "waitlist" && <SponsorBanner />} {/* Added SponsorBanner for waitlist mode */}
       <HowItWorks />
       <CurrentProject project={currentProject} mode={mode} />
       <CommunityVote voteCycle={voteCycle} />
@@ -548,6 +549,106 @@ function FAQSection() {
             );
           })}
         </ul>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------- Sponsor Banner */
+function SponsorBanner() {
+  const [progress, setProgress] = useState(0);
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const bannerRef = useRef(null);
+  const sponsorLogosRef = useRef(null);
+
+  const targetAmount = 5000;
+  const sponsorLogos = [
+    { id: 1, src: "/path/to/sponsor1.png", alt: "Sponsor 1" },
+    { id: 2, src: "/path/to/sponsor2.png", alt: "Sponsor 2" },
+    { id: 3, src: "/path/to/sponsor3.png", alt: "Sponsor 3" },
+    { id: 4, src: "/path/to/sponsor4.png", alt: "Sponsor 4" },
+    { id: 5, src: "/path/to/sponsor5.png", alt: "Sponsor 5" },
+    // Add more sponsor logos as needed
+  ];
+
+  // Simulate progress update
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setProgress((prevProgress) => {
+        if (prevProgress >= targetAmount) return targetAmount;
+        const increment = Math.random() * 500 + 100; // Random increment between 100 and 600
+        return Math.min(prevProgress + increment, targetAmount);
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Simulate sponsor logo scrolling
+  useEffect(() => {
+    const scrollInterval = setInterval(() => {
+      setScrollOffset((prevOffset) => {
+        const logosContainer = sponsorLogosRef.current;
+        if (!logosContainer) return prevOffset;
+
+        const containerWidth = logosContainer.offsetWidth;
+        const contentWidth = logosContainer.scrollWidth;
+        const newOffset = prevOffset + 1; // Adjust scroll speed here
+
+        if (newOffset >= contentWidth) {
+          return 0; // Loop back to the beginning
+        }
+        return newOffset;
+      });
+    }, 50); // Adjust animation speed here
+    return () => clearInterval(scrollInterval);
+  }, []);
+
+  const progressPercentage = (progress / targetAmount) * 100;
+
+  return (
+    <section ref={bannerRef} className="bg-[#161B22] py-6 border-b border-[#30363D] text-center" data-testid="sponsor-banner">
+      <div className="container">
+        <div className="mb-4">
+          <span className="font-mono text-xs uppercase tracking-widest text-cool mr-2">// SUPPORT US</span>
+          <span className="font-display font-bold text-xl md:text-2xl">Help us reach $5000</span>
+        </div>
+        <div className="relative h-12 w-full max-w-3xl mx-auto mb-4 rounded-full overflow-hidden bg-graphite">
+          <div
+            className="h-full bg-circuit transition-all duration-700 ease-out"
+            style={{ width: `${progressPercentage}%` }}
+            data-testid="sponsor-progress-bar"
+          ></div>
+          <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white" data-testid="sponsor-progress-text">
+            ${progress.toLocaleString()} / $5000
+          </span>
+        </div>
+        <div className="text-cool text-sm font-mono uppercase tracking-widest mb-4">Sponsors & Partners</div>
+        <div className="overflow-hidden py-2">
+          <div
+            ref={sponsorLogosRef}
+            className="flex space-x-8 animate-scroll-left"
+            style={{ transform: `translateX(-${scrollOffset}px)` }}
+            data-testid="sponsor-logos-container"
+          >
+            {sponsorLogos.map((logo) => (
+              <img
+                key={logo.id}
+                src={logo.src}
+                alt={logo.alt}
+                className="h-10 w-auto object-contain opacity-70 hover:opacity-100 transition-opacity duration-200"
+              />
+            ))}
+            {/* Duplicate logos for seamless looping */}
+            {sponsorLogos.map((logo) => (
+              <img
+                key={`${logo.id}-duplicate`}
+                src={logo.src}
+                alt={logo.alt}
+                className="h-10 w-auto object-contain opacity-70 hover:opacity-100 transition-opacity duration-200"
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   );
