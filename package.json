@@ -1,0 +1,17 @@
+{
+  "name": "dropkit",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node start.js",
+    "start:dev": "docker-compose up --build",
+    "start:prod": "docker-compose -f docker-compose.yml up -d",
+    "stop": "docker-compose down",
+    "logs": "docker-compose logs -f",
+    "setup": "node setup.js"
+  },
+  "devDependencies": {
+    "chalk": "^4.1.2",
+    "inquirer": "^8.2.6"
+  }
+}
