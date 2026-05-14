@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 import logging
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter  # Import APIRouter here
 from fastapi.middleware.cors import CORSMiddleware
 
 from auth import seed_dev_user
