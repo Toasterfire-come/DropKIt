@@ -84,6 +84,7 @@ android-sdk/-e
 .env
 .env.*
 *.env
+config.py
 credentials.json
 *.pem
 *.key
