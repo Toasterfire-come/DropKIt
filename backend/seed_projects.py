@@ -29,11 +29,16 @@ SAFEKEYVAULT = {
     "difficulty": "INTERMEDIATE",
     "estimatedTime": "3-4 hours",
     "componentsPreview": [
-        "ATECC608A secure element",
+        "1× custom SafeKeyVault PCB (assembled)",
+        "2-part 3D-printed enclosure shell",
         "RP2040 microcontroller",
+        "ATECC608A secure element",
+        "2× W25Q128JV flash",
         "USB-C connector + ESD protection",
-        "2× status LEDs (lock state · activity)",
-        "Digital PIN entry via the browser interface",
+        "2× APA102 LEDs",
+        "TTP223 touch sensor",
+        "AMS1117-3.3 regulator",
+        "16 MHz crystal",
     ],
     "imageUrl": "https://github.com/user-attachments/assets/a55a89b5-dc85-487a-8d1f-d79f0d79a8d3",
     "additionalImages": [
@@ -44,7 +49,7 @@ SAFEKEYVAULT = {
     "guideUrl": "https://github.com/Toasterfire-come/SafeKeyVault#readme",
     "youtubeUrl": "https://www.youtube.com/@DropKit-marketing",
     "license": "MIT / CC BY-SA",
-    "stockCount": 100,
+    "stockCount": 100,  # Default to a positive value on first insert
     "isActive": True,
 }
 
@@ -61,6 +66,7 @@ async def seed_safekeyvault() -> bool:
 
     if existing:
         # Only refresh non-stock, non-cycle fields so we don't trample real data.
+        # stockCount is intentionally not updated here to preserve it.
         refresh = {
             k: v for k, v in payload.items()
             if k not in ("stockCount", "cycleMonth", "cycleYear", "isActive")

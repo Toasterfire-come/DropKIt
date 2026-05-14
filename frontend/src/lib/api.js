@@ -1,5 +1,6 @@
 import axios from "axios";
 
+// Use relative URL with fallback for local development
 const BASE = process.env.REACT_APP_BACKEND_URL || "http://127.0.0.1:8000";
 
 export const api = axios.create({

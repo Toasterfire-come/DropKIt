@@ -269,7 +269,8 @@ function ShopFloor() {
   const evtSrc = useRef(null);
 
   useEffect(() => {
-    const url = `${process.env.REACT_APP_BACKEND_URL}/api/dev/ops/feed`;
+    // Use relative URL with fallback for local development
+    const url = `${process.env.REACT_APP_BACKEND_URL || ""}/api/dev/ops/feed`;
     const es = new EventSource(url, { withCredentials: true });
     evtSrc.current = es;
     es.onopen = () => setConnected(true);
