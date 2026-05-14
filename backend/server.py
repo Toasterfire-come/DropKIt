@@ -46,14 +46,20 @@ app = FastAPI(title="DropKit API", version="1.0.0", lifespan=lifespan)
 # If allow_credentials is True, the wildcard '*' for origins is not allowed.
 # We must provide a list of explicit origins.
 origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
+
+# If no explicit origins are provided, default to allowing localhost:3000 for development
+# and a wildcard for production if needed (though explicit is better).
 if not origins:
-    # Fallback if settings.CORS_ORIGINS is empty or malformed
-    origins = ["*"] # This will be overridden by the regex if it matches
+    if settings.ENVIRONMENT == "development":
+        origins = ["http://localhost:3000"]
+    else:
+        # In production, it's best to list specific allowed origins.
+        # Using a wildcard here as a fallback, but consider refining this.
+        origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins if origins != ["*"] else origins, # Use explicit origins if provided
-    allow_origin_regex=r"https://.*\.preview\.emergentagent\.com" if origins == ["*"] else None, # Apply regex only if wildcard is used
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
