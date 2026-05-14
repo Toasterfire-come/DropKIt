@@ -14,6 +14,7 @@ from auth import (
 from config import settings
 from db import get_db
 from shopify_client import shopify
+from gmail_service import send_blast # Import send_blast
 
 router = APIRouter()
 
@@ -181,6 +182,21 @@ async def set_ui_mode(payload: UIModeUpdate, _: dict = Depends(get_current_dev))
         {"$set": {"key": SETTINGS_KEY, "value": payload.mode, "updated_at": now}},
         upsert=True,
     )
+
+    # Send a notification email about the UI mode change
+    sender_email = os.environ.get("GMAIL_USER")
+    if sender_email:
+        try:
+            await send_blast(
+                user_id="system",  # A dummy user_id for system actions
+                sender=sender_email,  # Use the configured GMAIL_USER
+                subject=f"UI Mode Changed to: {payload.mode}",
+                html=f"<p>The UI mode has been changed to <strong>{payload.mode}</strong>.</p>",
+                recipients=["dropkit.marketing@gmail.com"]  # Example recipient
+            )
+        except Exception as e:
+            print(f"Failed to send UI mode change notification email: {e}")
+
     return UIModeOut(mode=payload.mode)
 
 
