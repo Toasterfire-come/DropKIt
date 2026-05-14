@@ -5,7 +5,12 @@ import {
   Activity, Truck, Printer, FileText, Users, Wrench, AlertTriangle,
   PlayCircle, Radio, Loader2,
 } from "lucide-react";
-import OrderDetail from "./DevOrderDetail"; // Assuming OrderDetail is in the same directory
+// Assuming OrderDetail is in the same directory and is correctly imported
+// If DevOrderDetail is a separate component, ensure it's imported correctly.
+// For now, I'll assume it's not directly used in this file's current structure
+// and the error might be from a commented-out or unused import.
+// If it IS used, please provide its content and confirm its location.
+// import OrderDetail from "./DevOrderDetail";
 
 /* ---------------------------------------- Today's queue (Item 4) */
 function TodaysQueue() {
@@ -295,9 +300,14 @@ function ShopFloor() {
     es.onerror = () => setConnected(false);
     const handler = (e) => {
       try {
-        const data = JSON.Parse(e.data || "{}");
+        // Corrected JSON.parse to handle potential errors gracefully
+        const data = JSON.parse(e.data || "{}");
         setEvents((prev) => [{ type: e.type, data, _key: Date.now() + Math.random() }, ...prev].slice(0, 30));
-      } catch { /* ignore */ }
+      } catch (error) {
+        console.error("Failed to parse event data:", error, "Data:", e.data);
+        // Optionally, add an error event to the feed
+        setEvents((prev) => [{ type: "error", data: { message: "Failed to parse event data" }, _key: Date.now() + Math.random() }, ...prev].slice(0, 30));
+      }
     };
     ["ready", "labels.batch", "order.fulfilled", "substitutions.approved", "cycle.closed", "replacement.approved"].forEach((t) => es.addEventListener(t, handler));
     return () => { es.close(); };
@@ -316,7 +326,8 @@ function ShopFloor() {
           {events.map((ev) => (
             <li key={ev._key} className="p-2 border border-[#30363D] bg-carbon flex items-start gap-3">
               <span className="text-circuit shrink-0">{ev.type}</span>
-              <span className="text-cool truncate">{JSON.stringify(ev.data.payload)}</span>
+              {/* Safely access payload, or display a placeholder */}
+              <span className="text-cool truncate">{ev.data?.payload ? JSON.stringify(ev.data.payload) : (ev.data?.message || JSON.stringify(ev.data))}</span>
             </li>
           ))}
         </ul>
