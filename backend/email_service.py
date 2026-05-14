@@ -19,7 +19,7 @@ import asyncio
 import logging
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -94,15 +94,20 @@ async def _send(recipient: str, subject: str, html: str, unique_id: Optional[str
         result = {"placeholder": True, "reason": "no_dev_user"}
     else:
         token = await gmail_service.get_connected(user_id)
-        sender = (token or {}).get("connected_email") or os.environ.get("SHIPPING_FROM_EMAIL", "")
-        try:
-            result = await gmail_service.send_blast(
-                user_id=user_id, sender=sender,
-                subject=subject, html=html, recipients=[recipient],
-            )
-        except RuntimeError as e:
-            log.warning("Gmail send skipped (%s) → %s", recipient, e)
-            result = {"placeholder": True, "error": str(e)}
+        # Use GMAIL_USER from settings as the sender email
+        sender = settings.GMAIL_USER or (token or {}).get("connected_email") or os.environ.get("SHIPPING_FROM_EMAIL", "")
+        if not sender:
+            log.warning("No sender email configured for Gmail; cannot send.")
+            result = {"placeholder": True, "reason": "no_sender_email"}
+        else:
+            try:
+                result = await gmail_service.send_blast(
+                    user_id=user_id, sender=sender,
+                    subject=subject, html=html, recipients=[recipient],
+                )
+            except (RuntimeError, ValueError, Exception) as e:
+                log.warning("Gmail send failed (%s) → %s: %s", recipient, subject, e)
+                result = {"placeholder": True, "error": str(e)}
 
     await db.email_log.insert_one({
         "unique_id": unique_id,
@@ -177,12 +182,11 @@ async def priority_unlocked(email, first_name, referral_code):
 
 async def free_month_earned(email, first_name, referral_code, discount_code,
                             discount_amount_cents, discount_expires_at):
-    ctx = {
-        "first_name": first_name, "referral_code": referral_code,
-        "discount_code": discount_code,
-        "discount_amount": f"${discount_amount_cents / 100:.2f}",
-        "discount_expires_at": discount_expires_at,
-        "milestone": "5_referrals",
+    ctx = {"first_name": first_name, "referral_code": referral_code,
+           "discount_code": discount_code,
+           "discount_amount": f"${discount_amount_cents / 100:.2f}",
+           "discount_expires_at": discount_expires_at,
+           "milestone": "5_referrals",
     }
     html = _render("04_free_month_earned.html", ctx)
     await _send(email, "You earned a free month on us", html, f"reward:{discount_code}")

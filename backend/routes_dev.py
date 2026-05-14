@@ -5,6 +5,7 @@ All require role=dev via get_current_dev dependency.
 import secrets
 from datetime import datetime, timezone
 from typing import Optional
+import os # Import os module
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -15,6 +16,7 @@ from db import get_db
 import shipping_service
 import gmail_service
 from models import serialize
+import email_service as mailer
 
 router = APIRouter(prefix="/dev")
 
@@ -109,7 +111,8 @@ async def gmail_connect(user: dict = Depends(get_current_dev)):
     await db.oauth_states.insert_one({
         "state": state, "user_id": user["id"], "created_at": datetime.now(timezone.utc),
     })
-    return {"auth_url": gmail_service.build_auth_url(state)}
+    # Use GMAIL_REDIRECT_URI from settings for the callback URL
+    return {"auth_url": gmail_service.build_auth_url(state, settings.GMAIL_REDIRECT_URI)}
 
 
 @router.get("/gmail/callback")
@@ -125,7 +128,8 @@ async def gmail_callback(request: Request):
     if not entry:
         raise HTTPException(status_code=400, detail="Invalid or expired state")
     try:
-        result = await gmail_service.exchange_code(code, entry["user_id"])
+        # Pass GMAIL_REDIRECT_URI from settings to the exchange function
+        result = await gmail_service.exchange_code(code, entry["user_id"], settings.GMAIL_REDIRECT_URI)
     finally:
         await db.oauth_states.delete_one({"_id": entry["_id"]})
 
@@ -141,11 +145,11 @@ async def gmail_callback(request: Request):
 @router.get("/gmail/status")
 async def gmail_status(user: dict = Depends(get_current_dev)):
     doc = await gmail_service.get_connected(user["id"])
-    if not doc:
-        return {"connected": False}
+    if not doc or not doc.get("connected"):
+        return {"connected": False, "email": doc.get("email", "")}
     return {
         "connected": True,
-        "email": doc.get("connected_email"),
+        "email": doc.get("email"),
         "expires_at": doc.get("expires_at"),
     }
 
@@ -173,28 +177,30 @@ async def email_blast(payload: BlastRequest, user: dict = Depends(get_current_de
         recipients = [str(payload.test_to)]
     elif payload.audience == "waitlist":
         recipients = [d["email"] async for d in db.waitlist.find({}, {"email": 1})]
-    else:
+    else: # audience == "users"
         recipients = [d["email"] async for d in db.users.find({"email": {"$exists": True}}, {"email": 1})]
 
     if not recipients:
         raise HTTPException(status_code=400, detail="No recipients to send to")
 
-    token = await gmail_service.get_connected(user["id"])
-    sender = (token or {}).get("connected_email") or user.get("email")
+    # Use GMAIL_USER from settings as the sender
+    sender = settings.GMAIL_USER
+    if not sender:
+        raise HTTPException(status_code=400, detail="GMAIL_USER not configured")
 
     try:
         result = await gmail_service.send_blast(
             user_id=user["id"], sender=sender,
             subject=payload.subject, html=payload.html, recipients=recipients,
         )
-    except RuntimeError as e:
+    except (RuntimeError, ValueError, Exception) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     await db.email_blasts.insert_one({
         "user_id": user["id"], "audience": payload.audience,
         "subject": payload.subject, "html": payload.html,
-        "total": result["total"], "sent": result["sent"],
-        "failed": result["failed"], "skipped": result.get("skipped", 0),
+        "total": result.get("sent", 0),
+        "skipped": result.get("skipped", 0),
         "placeholder": result.get("placeholder", False),
         "created_at": datetime.now(timezone.utc),
     })
@@ -282,14 +288,16 @@ async def fulfill_order(order_id: str, payload: FulfillRequest, user: dict = Dep
     """
     email_result = {"skipped": True, "reason": "not_attempted"}
     try:
-        token = await gmail_service.get_connected(user["id"])
-        sender = (token or {}).get("connected_email") or user.get("email")
+        # Use GMAIL_USER from settings as the sender
+        sender = settings.GMAIL_USER
+        if not sender:
+            raise ValueError("GMAIL_USER not configured")
         email_result = await gmail_service.send_blast(
             user_id=user["id"], sender=sender,
             subject="Your DropKit is on the way",
             html=html, recipients=[str(payload.buyer_email)],
         )
-    except RuntimeError as e:
+    except (RuntimeError, ValueError, Exception) as e:
         email_result = {"error": str(e)}
 
     # 3) Mark order fulfilled in MongoDB

@@ -1,6 +1,7 @@
 """Auth + UI-mode + AppSettings routes."""
 from datetime import datetime, timezone
 from typing import Literal, Optional
+import os # Import os module
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -184,7 +185,8 @@ async def set_ui_mode(payload: UIModeUpdate, _: dict = Depends(get_current_dev))
     )
 
     # Send a notification email about the UI mode change
-    sender_email = os.environ.get("GMAIL_USER")
+    # Use the GMAIL_USER from settings for the sender
+    sender_email = settings.GMAIL_USER
     if sender_email:
         try:
             await send_blast(
@@ -192,10 +194,10 @@ async def set_ui_mode(payload: UIModeUpdate, _: dict = Depends(get_current_dev))
                 sender=sender_email,  # Use the configured GMAIL_USER
                 subject=f"UI Mode Changed to: {payload.mode}",
                 html=f"<p>The UI mode has been changed to <strong>{payload.mode}</strong>.</p>",
-                recipients=["dropkit.marketing@gmail.com"]  # Example recipient
+                recipients=["dropkit.marketing@gmail.com"]  # Example recipient, adjust as needed
             )
         except Exception as e:
-            print(f"Failed to send UI mode change notification email: {e}")
+            log.warning(f"Failed to send UI mode change notification email: {e}") # Use log instead of print
 
     return UIModeOut(mode=payload.mode)
 
