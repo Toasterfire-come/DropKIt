@@ -42,10 +42,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="DropKit API", version="1.0.0", lifespan=lifespan)
 
+# CORS configuration
+# If allow_credentials is True, the wildcard '*' for origins is not allowed.
+# We must provide a list of explicit origins.
+origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
+if not origins:
+    # Fallback if settings.CORS_ORIGINS is empty or malformed
+    origins = ["*"] # This will be overridden by the regex if it matches
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()] or ["*"],
-    allow_origin_regex=r"https://.*\.preview\.emergentagent\.com",
+    allow_origins=origins if origins != ["*"] else origins, # Use explicit origins if provided
+    allow_origin_regex=r"https://.*\.preview\.emergentagent\.com" if origins == ["*"] else None, # Apply regex only if wildcard is used
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

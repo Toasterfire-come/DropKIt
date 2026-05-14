@@ -10,7 +10,11 @@ class Settings:
     # Database
     MONGO_URL: str = os.environ["MONGODB_URL"]
     DB_NAME: str = os.environ["DB_NAME"]
-    CORS_ORIGINS: str = os.environ.get("CORS_ORIGINS", "*")
+    # CORS origins: comma-separated list, defaults to specific origins for production
+    CORS_ORIGINS: str = os.environ.get(
+        "CORS_ORIGINS",
+        "https://dropkit.me,http://localhost:3000,http://127.0.0.1:3000"
+    )
 
     # Shopify
     SHOPIFY_API_KEY: str = os.environ.get("SHOPIFY_API_KEY", "")
