@@ -8,7 +8,7 @@ load_dotenv()
 
 class Settings:
     # Database
-    MONGO_URL: str = os.environ["MONGO_URL"]
+    MONGO_URL: str = os.environ["MONGODB_URL"]
     DB_NAME: str = os.environ["DB_NAME"]
     CORS_ORIGINS: str = os.environ.get("CORS_ORIGINS", "*")
 
