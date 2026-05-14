@@ -56,7 +56,7 @@ class Settings:
 
     # Gmail OAuth
     GMAIL_USER: str = os.environ.get("GMAIL_USER", "dropkit.marketing@gmail.com")
-    GMAIL_APP_PASSWORD: str = os.environ.get("GMAIL_APP_PASSWORD", "mrpt rooc iukq qgmx") # Note: This is an App Password, not a regular Google account password.
+    GMAIL_APP_PASSWORD: str = os.environ.get("GMAIL_APP_PASSWORD") # Note: This is an App Password, not a regular Google account password.
     GMAIL_CLIENT_ID: str = os.environ.get("GMAIL_CLIENT_ID")
     GMAIL_CLIENT_SECRET: str = os.environ.get("GMAIL_CLIENT_SECRET")
     GMAIL_REDIRECT_URI: str = os.environ.get("GMAIL_REDIRECT_URI", "") # This should be set in your Google Cloud Console
