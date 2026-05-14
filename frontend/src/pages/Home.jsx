@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { Cpu, Vote as VoteIcon, Package, ArrowRight, Github, MessageCircle, ChevronDown, Zap, Search } from "lucide-react";
 import { useUIMode } from "../lib/contexts";
-import { captureRefFromUrl, rememberMyCode, getMyCode, forgetMyCode } from "../lib/referral";
+import { captureRefFromUrl, rememberMyCode, getMyCode } from "../lib/referral";
 import ReferralSuccess from "../components/ReferralSuccess";
 
 export default function Home() {
@@ -210,13 +210,13 @@ function LookupForm({ onFound, onBack }) {
   );
 }
 
-/* ------------------------------------------------- Live Hero */
+/* ---------------------------------------- Live Hero */
 function Hero() {
   return (
     <section className="circuit-bg relative overflow-hidden border-b border-[#30363D]" id="subscribe" data-testid="hero-section">
       <div className="container py-24 md:py-32 grid md:grid-cols-12 gap-10 items-center">
         <div className="md:col-span-7 reveal">
-          <span className="chip chip-green mb-6 inline-block">◉ NOW SHIPPING</span>
+          <span className="chip chip-green inline-block">◉ NOW SHIPPING</span>
           <h1 className="font-display font-bold text-5xl md:text-7xl leading-[1.02] tracking-tight">
             Build something<br />
             <span className="text-circuit">real this month.</span>
@@ -400,9 +400,7 @@ function CommunityVote({ voteCycle }) {
         {!voteCycle ? (
           <div className="card p-10 mt-10 text-center" data-testid="vote-empty">
             <p className="text-cool">
-              {mode === "live"
-                ? "The first community vote opens after launch. Subscribe to get a vote each month."
-                : "Voting opens once we launch. Join the waitlist to get a vote your first month."}
+              {mode === "live" ? "The first community vote opens after launch. Subscribe to get a vote each month." : "Voting opens once we launch. Join the waitlist to get a vote your first month."}
             </p>
           </div>
         ) : (
@@ -554,7 +552,7 @@ function FAQSection() {
   );
 }
 
-/* ------------------------------------------------- Sponsor Banner */
+/* ---------------------------------------- Sponsor Banner */
 function SponsorBanner() {
   const [progress, setProgress] = useState(0);
   const [scrollOffset, setScrollOffset] = useState(0);
@@ -609,8 +607,8 @@ function SponsorBanner() {
     <section ref={bannerRef} className="bg-[#161B22] py-6 border-b border-[#30363D] text-center" data-testid="sponsor-banner">
       <div className="container">
         <div className="mb-4">
-          <span className="font-mono text-xs uppercase tracking-widest text-cool mr-2">// SUPPORT US</span>
-          <span className="font-display font-bold text-xl md:text-2xl">Help us reach $5000</span>
+          <span className="font-mono text-xs uppercase tracking-widest text-cool mr-2">//</span>
+          <span className="font-display font-bold text-xl md:text-2xl">Sponsors & Partners Go Here</span>
         </div>
         <div className="relative h-12 w-full max-w-3xl mx-auto mb-4 rounded-full overflow-hidden bg-graphite">
           <div
@@ -622,7 +620,7 @@ function SponsorBanner() {
             ${progress.toLocaleString()} / $5000
           </span>
         </div>
-        <div className="text-cool text-sm font-mono uppercase tracking-widest mb-4">Sponsors & Partners</div>
+        <div className="text-cool text-sm font-mono uppercase tracking-widest mb-4"></div>
         <div className="overflow-hidden py-2">
           <div
             ref={sponsorLogosRef}

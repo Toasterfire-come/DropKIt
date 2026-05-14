@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
+import api, { formatApiError } from "../lib/api";
 import { toast } from "sonner";
 import {
   Activity, Truck, Printer, FileText, Users, Wrench, AlertTriangle,
   PlayCircle, Radio, Loader2,
 } from "lucide-react";
-import api, { formatApiError } from "../lib/api";
+import OrderDetail from "./DevOrderDetail"; // Assuming OrderDetail is in the same directory
 
 /* ---------------------------------------- Today's queue (Item 4) */
 function TodaysQueue() {
@@ -42,7 +43,7 @@ function TodaysQueue() {
       </div>
       <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
         {cards.map((c) => (
-          <div key={c.label} data-testid={c.testId} className={`p-4 border ${c.alert ? "border-circuit bg-[#1a0d05]" : "border-[#30363D] bg-carbon"}`}>
+          <div key={c.label} data-testid={c.testId} className={`p-4 border ${c.alert ? "border-circuit bg-carbon" : "border-[#30363D] bg-carbon"}`}>
             <div className="text-xs font-mono uppercase tracking-widest text-cool">{c.label}</div>
             <div className={`mt-2 font-display text-3xl font-bold ${c.alert ? "text-circuit" : "text-warm"}`}>{c.value}</div>
           </div>
@@ -155,12 +156,23 @@ function Replacements() {
 /* ---------------------------------------- Cohorts (Item 12) */
 function Cohorts() {
   const [data, setData] = useState(null);
-  useEffect(() => { api.get("/dev/ops/cohorts").then((r) => setData(r.data)).catch(() => {}); }, []);
+  const [busy, setBusy] = useState(false);
 
-  if (!data) return null;
+  const refresh = async () => {
+    setBusy(true);
+    try { setData((await api.get("/dev/ops/cohorts")).data); }
+    catch (e) { toast.error(formatApiError(e)); }
+    finally { setBusy(false); }
+  };
+  useEffect(() => { refresh(); }, []);
+
+  if (!data) return <div className="text-cool font-mono text-xs">Loading cohorts…</div>;
   return (
     <div data-testid="cohorts-section">
-      <div className="section-label">// cohorts</div>
+      <div className="flex items-center gap-3">
+        <Users size={14} className="text-circuit" />
+        <div className="section-label">// cohorts</div>
+      </div>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-sm font-mono">
           <thead className="text-cool text-xs uppercase tracking-widest">
@@ -175,12 +187,15 @@ function Cohorts() {
                 <td className="text-right py-2 px-3">{c.cancelled}</td>
                 <td className="text-right py-2 px-3 text-cool">{c.inactive}</td>
                 <td className="text-right py-2 px-3">{c.total}</td>
-                <td className="text-right py-2 px-3 text-circuit font-bold">{c.retention_pct}%</td>
+                <td className={`text-right py-2 px-3 font-bold ${c.retention_pct >= 80 ? "text-circuit" : ""}`}>{c.retention_pct}%</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <button onClick={refresh} disabled={busy} className="mt-3 btn-ghost text-xs py-1.5 px-3" data-testid="cohorts-refresh">
+        {busy ? <Loader2 size={12} className="animate-spin" /> : "↻"} Refresh
+      </button>
     </div>
   );
 }
@@ -193,17 +208,20 @@ function TaxNexus() {
   const refresh = async () => {
     setBusy(true);
     try { setData((await api.get("/dev/ops/tax-nexus")).data); }
-    catch (e) { toast.error(formatApiError(e)); }
+    catch (err) { toast.error(formatApiError(err)); }
     finally { setBusy(false); }
   };
   useEffect(() => { refresh(); }, []);
 
-  if (!data) return null;
+  if (!data) return <div className="text-cool font-mono text-xs">Loading tax nexus…</div>;
   return (
     <div data-testid="tax-nexus-section">
-      <div className="flex items-center gap-3"><AlertTriangle size={14} className="text-circuit" /><div className="section-label">// sales-tax nexus · {data.year}</div></div>
+      <div className="flex items-center gap-3">
+        <AlertTriangle size={14} className="text-circuit" />
+        <div className="section-label">// sales-tax nexus · {data.year}</div>
+      </div>
       {(data.rows || []).length === 0 ? (
-        <div className="mt-2 text-cool font-mono text-xs">No US-state orders this year yet — nothing to monitor.</div>
+        <p className="mt-2 text-cool font-mono text-xs">No nexus states crossed this year.</p>
       ) : (
         <div className="mt-3 overflow-x-auto">
           <table className="w-full text-sm font-mono">
@@ -214,7 +232,7 @@ function TaxNexus() {
               {data.rows.map((r) => (
                 <tr key={r.state} className="border-t border-[#30363D]">
                   <td className="py-2 px-3">{r.state}</td>
-                  <td className="text-right py-2 px-3">${(r.revenue_cents / 100).toLocaleString()}</td>
+                  <td className="text-right py-2 px-3">${(r.revenue_cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className="text-right py-2 px-3">{r.orders}</td>
                   <td className={`text-right py-2 px-3 ${r.pct_of_threshold >= 80 ? "text-circuit font-bold" : ""}`}>{r.pct_of_threshold}%</td>
                 </tr>
@@ -277,7 +295,7 @@ function ShopFloor() {
     es.onerror = () => setConnected(false);
     const handler = (e) => {
       try {
-        const data = JSON.parse(e.data || "{}");
+        const data = JSON.Parse(e.data || "{}");
         setEvents((prev) => [{ type: e.type, data, _key: Date.now() + Math.random() }, ...prev].slice(0, 30));
       } catch { /* ignore */ }
     };

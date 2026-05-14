@@ -110,3 +110,12 @@ export default function ReplacementRequest() {
     </section>
   );
 }
+
+function Field({ label, full, children }) {
+  return (
+    <label className={`block ${full ? "md:col-span-2" : ""}`}>
+      <span className="text-xs font-mono uppercase tracking-widest text-cool">{label}</span>
+      <div className="mt-2">{children}</div>
+    </label>
+  );
+}

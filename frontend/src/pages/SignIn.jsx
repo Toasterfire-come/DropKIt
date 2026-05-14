@@ -84,7 +84,7 @@ export default function SignIn() {
         </Field>
         <Field label="Password">
           <input
-            type="password" required value={password}
+            type="password" required minLength={8} value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="input" data-testid="signin-password"
             placeholder="••••••••"

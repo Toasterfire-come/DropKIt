@@ -3,6 +3,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { Button, buttonVariants } from "@/components/ui/button"
 
 const Dialog = DialogPrimitive.Root
 
@@ -65,10 +66,7 @@ const DialogFooter = ({
 DialogFooter.displayName = "DialogFooter"
 
 const DialogTitle = React.forwardRef(({ className, ...props }, ref) => (
-  <DialogPrimitive.Title
-    ref={ref}
-    className={cn("text-lg font-semibold leading-none tracking-tight", className)}
-    {...props} />
+  <DialogPrimitive.Title ref={ref} className={cn("text-lg font-semibold leading-none tracking-tight", className)} {...props} />
 ))
 DialogTitle.displayName = DialogPrimitive.Title.displayName
 
@@ -78,7 +76,21 @@ const DialogDescription = React.forwardRef(({ className, ...props }, ref) => (
     className={cn("text-sm text-muted-foreground", className)}
     {...props} />
 ))
-DialogDescription.displayName = DialogPrimitive.Description.displayName
+DialogDescription.displayName =
+  DialogPrimitive.Description.displayName
+
+const DialogAction = React.forwardRef(({ className, ...props }, ref) => (
+  <DialogPrimitive.Action ref={ref} className={cn(buttonVariants(), className)} {...props} />
+))
+DialogAction.displayName = DialogPrimitive.Action.displayName
+
+const DialogCancel = React.forwardRef(({ className, ...props }, ref) => (
+  <DialogPrimitive.Cancel
+    ref={ref}
+    className={cn(buttonVariants({ variant: "outline" }), "mt-2 sm:mt-0", className)}
+    {...props} />
+))
+DialogCancel.displayName = DialogPrimitive.Cancel.displayName
 
 export {
   Dialog,
@@ -91,4 +103,6 @@ export {
   DialogFooter,
   DialogTitle,
   DialogDescription,
+  DialogAction,
+  DialogCancel,
 }
