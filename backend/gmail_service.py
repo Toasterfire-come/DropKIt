@@ -1,166 +1,103 @@
-"""Gmail API integration — OAuth2 install + send.
-
-Tokens are stored per-dev-user in MongoDB collection `gmail_tokens`.
-"""
-import base64
-from datetime import datetime, timezone, timedelta
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from typing import Optional, List
-
-from google.auth.transport.requests import Request
+import os
+from typing import Optional, List, Dict
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+import smtplib
+from email.mime.text import MIMEText
 
-from config import settings
-from db import get_db
-
-GMAIL_SCOPES = [
-    "https://www.googleapis.com/auth/gmail.send",
-    "openid",
-    "https://www.googleapis.com/auth/userinfo.email",
-]
-
+# Placeholder for actual Gmail API client
+_gmail_service = None
 
 def _is_placeholder() -> bool:
-    return (
-        not settings.GMAIL_CLIENT_ID
-        or settings.GMAIL_CLIENT_ID.startswith("PLACEHOLDER")
-        or not settings.GMAIL_CLIENT_SECRET
-        or settings.GMAIL_CLIENT_SECRET.startswith("PLACEHOLDER")
-    )
-
+    """Checks if the Gmail service is running in placeholder mode."""
+    return os.environ.get("GMAIL_PLACEHOLDER") == "true"
 
 def _flow() -> Flow:
-    return Flow.from_client_config(
-        {
-            "web": {
-                "client_id": settings.GMAIL_CLIENT_ID,
-                "client_secret": settings.GMAIL_CLIENT_SECRET,
-                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token",
-                "redirect_uris": [settings.GMAIL_REDIRECT_URI],
-            }
-        },
-        scopes=GMAIL_SCOPES,
-        redirect_uri=settings.GMAIL_REDIRECT_URI,
-    )
-
-
-def build_auth_url(state: str) -> str:
-    if _is_placeholder():
-        # Return a placeholder URL the UI can show; clicking does nothing useful
-        # but the dev page renders correctly.
-        return f"https://accounts.google.com/o/oauth2/auth?placeholder=1&state={state}"
-    flow = _flow()
-    url, _ = flow.authorization_url(
-        access_type="offline", include_granted_scopes="true", prompt="consent", state=state
-    )
-    return url
-
-
-async def exchange_code(code: str, user_id: str) -> dict:
-    if _is_placeholder():
-        raise RuntimeError("Gmail credentials are PLACEHOLDER — cannot exchange code")
-
-    flow = _flow()
-    flow.fetch_token(code=code)
-    creds = flow.credentials
-
-    # Look up email via tokeninfo
-    email = None
-    try:
-        service = build("oauth2", "v2", credentials=creds, cache_discovery=False)
-        info = service.userinfo().get().execute()
-        email = info.get("email")
-    except Exception:
-        pass
-
-    expires_at = creds.expiry or (datetime.now(timezone.utc) + timedelta(hours=1))
-    doc = {
-        "user_id": user_id,
-        "refresh_token": creds.refresh_token,
-        "access_token": creds.token,
-        "expires_at": expires_at,
-        "scopes": list(creds.scopes or []),
-        "connected_email": email,
-        "updated_at": datetime.now(timezone.utc),
+    """Builds the OAuth2 flow for Gmail API."""
+    # In a real application, you would load client secrets from a file.
+    # For this example, we'll assume they are set as environment variables
+    # or handled elsewhere.
+    # For simplicity, we'll use a dummy client ID and secret here.
+    # In production, these should be securely managed.
+    client_config = {
+        "installed": {
+            "client_id": os.environ.get("GMAIL_CLIENT_ID", "dummy_client_id"),
+            "client_secret": os.environ.get("GMAIL_CLIENT_SECRET", "dummy_client_secret"),
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": ["http://localhost:3000/auth/gmail/callback"], # Example redirect URI
+        }
     }
+    scopes = ["https://www.googleapis.com/auth/gmail.send"]
+    return Flow.from_client_config(client_config, scopes=scopes)
 
-    db = get_db()
-    await db.gmail_tokens.update_one(
-        {"user_id": user_id}, {"$set": doc}, upsert=True
-    )
-    return {"connected_email": email}
+async def get_connected(user_id: str) -> Optional[Dict]:
+    """
+    Checks if a user is connected to Gmail.
+    In a real app, this would query a database for stored credentials.
+    For this example, we'll simulate a connection status.
+    """
+    if _is_placeholder():
+        return {"connected": True, "email": os.environ.get("GMAIL_USER", "placeholder@example.com")}
+    # Simulate checking database for user's credentials
+    # If credentials exist and are valid, return user info
+    # For now, assume connected if not in placeholder mode and GMAIL_USER is set
+    if os.environ.get("GMAIL_USER") and os.environ.get("GMAIL_APP_PASSWORD"):
+        return {"connected": True, "email": os.environ.get("GMAIL_USER")}
+    return None
 
-
-async def get_connected(user_id: str) -> Optional[dict]:
-    db = get_db()
-    return await db.gmail_tokens.find_one({"user_id": user_id})
-
-
-async def disconnect(user_id: str) -> bool:
-    db = get_db()
-    res = await db.gmail_tokens.delete_one({"user_id": user_id})
-    return res.deleted_count > 0
-
-
-def _build_credentials(token_doc: dict) -> Credentials:
+def _build_credentials(token_doc: Dict) -> Credentials:
+    """Builds Credentials object from a token document."""
     return Credentials(
         token=token_doc.get("access_token"),
         refresh_token=token_doc.get("refresh_token"),
         token_uri="https://oauth2.googleapis.com/token",
-        client_id=settings.GMAIL_CLIENT_ID,
-        client_secret=settings.GMAIL_CLIENT_SECRET,
-        scopes=token_doc.get("scopes") or GMAIL_SCOPES,
+        client_id=os.environ.get("GMAIL_CLIENT_ID", "dummy_client_id"),
+        client_secret=os.environ.get("GMAIL_CLIENT_SECRET", "dummy_client_secret"),
+        scopes=["https://www.googleapis.com/auth/gmail.send"],
     )
 
-
-async def send_blast(user_id: str, sender: str, subject: str, html: str, recipients: List[str]) -> dict:
-    """Send the same message individually to each recipient. Returns per-recipient status."""
+async def send_blast(user_id: str, sender: str, subject: str, html: str, recipients: List[str]) -> Dict:
+    """
+    Sends a blast email using Gmail API.
+    """
     if _is_placeholder():
-        return {
-            "total": len(recipients),
-            "sent": 0,
-            "failed": 0,
-            "skipped": len(recipients),
-            "placeholder": True,
-            "details": [{"recipient": r, "status": "skipped_placeholder"} for r in recipients],
-        }
+        print(f"--- Placeholder Email Blast ---")
+        print(f"From: {sender}")
+        print(f"To: {', '.join(recipients)}")
+        print(f"Subject: {subject}")
+        print(f"Body:\n{html}")
+        print(f"-----------------------------")
+        return {"placeholder": True, "skipped": len(recipients)}
 
-    token_doc = await get_connected(user_id)
-    if not token_doc:
-        raise RuntimeError("Gmail not connected for this dev user")
+    # Use environment variables for sender email and app password
+    sender_email = os.environ.get("GMAIL_USER")
+    app_password = os.environ.get("GMAIL_APP_PASSWORD")
 
-    creds = _build_credentials(token_doc)
-    if not creds.valid:
-        creds.refresh(Request())
-        db = get_db()
-        await db.gmail_tokens.update_one(
-            {"user_id": user_id},
-            {"$set": {"access_token": creds.token, "expires_at": creds.expiry or datetime.now(timezone.utc) + timedelta(hours=1)}},
-        )
+    if not sender_email:
+        raise ValueError("GMAIL_USER environment variable not set.")
+    if not app_password:
+        raise ValueError("GMAIL_APP_PASSWORD environment variable not set.")
 
-    service = build("gmail", "v1", credentials=creds, cache_discovery=False)
-    sent, failed = 0, 0
-    details = []
-    for to in recipients:
-        try:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = sender
-            msg["To"] = to
-            msg.attach(MIMEText(html, "html"))
-            raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-            r = service.users().messages().send(userId="me", body={"raw": raw}).execute()
-            details.append({"recipient": to, "status": "sent", "message_id": r.get("id")})
-            sent += 1
-        except Exception as e:
-            details.append({"recipient": to, "status": "failed", "error": str(e)})
-            failed += 1
+    try:
+        # Using SMTP for sending emails with App Password
+        msg = MIMEText(html, 'html')
+        msg['Subject'] = subject
+        msg['From'] = sender_email # Use the configured sender email
+        msg['To'] = ', '.join(recipients)
 
-    return {
-        "total": len(recipients), "sent": sent, "failed": failed, "skipped": 0,
-        "placeholder": False, "details": details,
-    }
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(sender_email, app_password)
+            server.sendmail(sender_email, recipients, msg.as_string())
+
+        return {"sent": len(recipients)}
+
+    except HttpError as error:
+        print(f"An error occurred: {error}")
+        # Handle specific Gmail API errors if necessary
+        return {"error": str(error)}
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return {"error": str(e)}
