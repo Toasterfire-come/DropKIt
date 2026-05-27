@@ -1,4 +1,8 @@
-"""Checkout / quote — compute shipping rates + tax for the subscribe flow."""
+"""Checkout / quote — flat-rate standard + rate-shopped express.
+
+Standard: $9 flat (set cost)
+Express:  Live EasyPost rate + $2 packaging fee
+"""
 from datetime import datetime, timezone
 from typing import Optional
 from urllib.parse import urlencode
@@ -8,8 +12,11 @@ from pydantic import BaseModel, EmailStr
 
 from config import settings
 from db import get_db
-from shipping_service import create_shipment_with_rates
-import shipping_service
+from shipping_service import (
+    create_shipment_with_rates,
+    verify_address,
+    FLAT_RATE_STANDARD_CENTS,
+)
 from tax_service import calculate_tax
 
 router = APIRouter(prefix="/checkout")
@@ -40,8 +47,8 @@ async def quote(payload: QuoteRequest):
     addr_dict["name"] = payload.address.name or payload.email.split("@")[0]
     addr_dict["phone"] = payload.address.phone or settings.SHIPPING_FROM_PHONE
 
-    # Item 8 — verify address before pulling rates (catches typos that cause $13 reships)
-    verified = shipping_service.verify_address(addr_dict)
+    # Verify address before proceeding
+    verified = verify_address(addr_dict)
     if not verified.get("valid"):
         raise HTTPException(
             status_code=422,
@@ -51,32 +58,34 @@ async def quote(payload: QuoteRequest):
                 "canonical": verified.get("canonical"),
             },
         )
-    # Use the canonical (corrected) address for rating + persistence
     addr_dict = verified.get("canonical") or addr_dict
 
+    # ── Get rates: standard is flat $9, express is live rate + $2 ──
     rates = create_shipment_with_rates(to_address=addr_dict)
-    if not rates.get("cheapest"):
-        raise HTTPException(status_code=400, detail="No shipping rates available for that address")
+    standard = rates["standard"]
+    express  = rates["express"]
 
-    cheapest_cents = int(round(rates["cheapest"]["rate"] * 100))
-    priority_cents = int(round(rates["priority"]["rate"] * 100))
+    standard_shipping_cents = FLAT_RATE_STANDARD_CENTS
+    express_shipping_cents  = int(round(express["rate"] * 100))
 
-    tax_cheapest = calculate_tax(SUBSCRIPTION_PRICE_CENTS, cheapest_cents, addr_dict)
-    tax_priority = calculate_tax(SUBSCRIPTION_PRICE_CENTS, priority_cents, addr_dict)
+    tax_standard = calculate_tax(SUBSCRIPTION_PRICE_CENTS, standard_shipping_cents, addr_dict)
+    tax_express  = calculate_tax(SUBSCRIPTION_PRICE_CENTS, express_shipping_cents, addr_dict)
 
-    # Persist the quote for analytics + later checkout linking
+    # Persist the quote
     db = get_db()
     quote_doc = {
         "email": payload.email,
         "address": addr_dict,
         "shipment_id": rates["shipment_id"],
-        "cheapest": rates["cheapest"],
-        "priority": rates["priority"],
+        "standard": standard,
+        "express": express,
         "subscription_cents": SUBSCRIPTION_PRICE_CENTS,
-        "tax_cheapest_cents": tax_cheapest["tax_cents"],
-        "tax_priority_cents": tax_priority["tax_cents"],
+        "standard_shipping_cents": standard_shipping_cents,
+        "express_shipping_cents": express_shipping_cents,
+        "tax_standard_cents": tax_standard["tax_cents"],
+        "tax_express_cents": tax_express["tax_cents"],
         "placeholder_shipping": rates.get("placeholder", False),
-        "placeholder_tax": tax_cheapest.get("placeholder", False),
+        "placeholder_tax": tax_standard.get("placeholder", False),
         "created_at": datetime.now(timezone.utc),
     }
     res = await db.checkout_quotes.insert_one(quote_doc)
@@ -85,38 +94,26 @@ async def quote(payload: QuoteRequest):
         "quote_id": str(res.inserted_id),
         "email": payload.email,
         "subscription_cents": SUBSCRIPTION_PRICE_CENTS,
-        "options": {
-            "cheapest": {
-                "rate": rates["cheapest"],
-                "shipping_cents": cheapest_cents,
-                "tax_cents": tax_cheapest["tax_cents"],
-                "total_cents": SUBSCRIPTION_PRICE_CENTS + cheapest_cents + tax_cheapest["tax_cents"],
-            },
-            "priority": {
-                "rate": rates["priority"],
-                "shipping_cents": priority_cents,
-                "tax_cents": tax_priority["tax_cents"],
-                "total_cents": SUBSCRIPTION_PRICE_CENTS + priority_cents + tax_priority["tax_cents"],
-            },
+        "shipping": {
+            "standard": {"rate": standard, "shipping_cents": standard_shipping_cents, "tax_cents": tax_standard["tax_cents"], "total_cents": SUBSCRIPTION_PRICE_CENTS + standard_shipping_cents + tax_standard["tax_cents"]},
+            "express":  {"rate": express,  "shipping_cents": express_shipping_cents,  "tax_cents": tax_express["tax_cents"],  "total_cents": SUBSCRIPTION_PRICE_CENTS + express_shipping_cents + tax_express["tax_cents"]},
         },
         "placeholder_shipping": rates.get("placeholder", False),
-        "placeholder_tax": tax_cheapest.get("placeholder", False),
+        "placeholder_tax": tax_standard.get("placeholder", False),
     }
 
 
 class CheckoutStartRequest(BaseModel):
     quote_id: str
-    rate_choice: str  # "cheapest" | "priority"
+    shipping_choice: str  # "standard" | "express"
 
 
 @router.post("/start")
 async def start_checkout(payload: CheckoutStartRequest):
-    """Hand off to Shopify Checkout with the subscription line item pre-loaded.
+    """Hand off to Shopify Checkout with the subscription + shipping info.
 
-    When Shopify is properly configured (via env), this returns a cart-permalink
-    that loads the subscription product with the right selling plan, customer
-    email, and any active referral discount code, then redirects to Shopify
-    Checkout. With placeholder creds, it falls back to the product page URL.
+    Shows the shipping option the user selected so it's transparent before
+    they hit Shopify.
     """
     from bson import ObjectId
     from shopify_client import build_subscription_cart_url, shopify_is_configured
@@ -128,9 +125,13 @@ async def start_checkout(payload: CheckoutStartRequest):
     if not quote_doc:
         raise HTTPException(status_code=404, detail="Quote not found")
 
-    rate = quote_doc.get(payload.rate_choice)
+    if payload.shipping_choice not in ("standard", "express"):
+        raise HTTPException(status_code=400, detail="shipping_choice must be 'standard' or 'express'")
+
+    rate = quote_doc.get(payload.shipping_choice)
     if not rate:
-        raise HTTPException(status_code=400, detail="Invalid rate choice")
+        raise HTTPException(status_code=400, detail="Shipping option not found in quote")
+    shipping_cents = quote_doc.get(f"{payload.shipping_choice}_shipping_cents", FLAT_RATE_STANDARD_CENTS)
 
     email = quote_doc["email"]
     discount_code = None
@@ -153,12 +154,13 @@ async def start_checkout(payload: CheckoutStartRequest):
         )
         placeholder = False
     else:
-        # Dev fallback: same Shopify product page URL as before
+        # Dev fallback
         params = {
             "email": email,
             "properties[shipping_service]": rate["service"],
             "properties[shipping_carrier]": rate["carrier"],
-            "properties[shipping_rate_cents]": str(int(round(rate["rate"] * 100))),
+            "properties[shipping_rate_cents]": str(shipping_cents),
+            "properties[shipping_choice]": payload.shipping_choice,
             "properties[quote_id]": payload.quote_id,
         }
         if discount_code:
@@ -173,7 +175,7 @@ async def start_checkout(payload: CheckoutStartRequest):
         {"_id": quote_doc["_id"]},
         {"$set": {
             "checkout_started_at": datetime.now(timezone.utc),
-            "rate_choice": payload.rate_choice,
+            "shipping_choice": payload.shipping_choice,
             "discount_code_applied": discount_code,
         }},
     )
@@ -182,4 +184,6 @@ async def start_checkout(payload: CheckoutStartRequest):
         "redirect_url": redirect_url,
         "placeholder_shopify": placeholder,
         "discount_code_applied": discount_code,
+        "shipping_choice": payload.shipping_choice,
+        "shipping_label": f"{rate['carrier']} {rate['service']} — ${shipping_cents / 100:.2f}",
     }

@@ -1,6 +1,8 @@
-"""EasyPost shipping client.
+"""EasyPost shipping client — flat-rate standard + rate-shopped express.
 
-Production-grade rate shopping + label generation with placeholder-aware fallback.
+Standard shipping: $9.00 flat (set cost)
+Express shipping:   EasyPost rate-shopped rate + $2 additional packaging fee
+
 When EASYPOST_API_KEY starts with PLACEHOLDER, all methods return synthesized
 mock data so the UI can be exercised end-to-end without real credentials.
 """
@@ -9,14 +11,16 @@ import easypost
 
 from config import settings
 
+# ── Constants ──
+FLAT_RATE_STANDARD_CENTS = 900   # $9.00 set cost
+EXPRESS_PACKAGING_FEE_CENTS = 200  # $2.00 additional packaging
+
 
 def _is_placeholder() -> bool:
-    # Check if EasyPost API key is missing or a placeholder
     return not settings.EASYPOST_API_KEY or settings.EASYPOST_API_KEY.startswith("PLACEHOLDER")
 
 
 def _client() -> Optional[easypost.EasyPostClient]:
-    """Returns an EasyPost client if configured, otherwise None."""
     if _is_placeholder():
         return None
     return easypost.EasyPostClient(settings.EASYPOST_API_KEY)
@@ -46,59 +50,67 @@ def _default_parcel() -> dict:
 
 
 def create_shipment_with_rates(to_address: dict, parcel: Optional[dict] = None) -> Dict:
-    """Create a shipment and return cheapest + priority rates from the same carrier."""
-    if _is_placeholder():
-        # Synthesized rates so UI can be exercised in dev
-        return {
-            "shipment_id": "shp_placeholder_dev",
-            "rates": [
-                {"id": "rate_usps_first", "carrier": "USPS", "service": "First", "rate": 5.20, "currency": "USD", "delivery_days": 4},
-                {"id": "rate_usps_priority", "carrier": "USPS", "service": "Priority", "rate": 9.45, "currency": "USD", "delivery_days": 2},
-                {"id": "rate_usps_express", "carrier": "USPS", "service": "Express", "rate": 28.10, "currency": "USD", "delivery_days": 1},
-            ],
-            "cheapest": {"id": "rate_usps_first", "carrier": "USPS", "service": "First", "rate": 5.20, "currency": "USD", "delivery_days": 4},
-            "priority": {"id": "rate_usps_priority", "carrier": "USPS", "service": "Priority", "rate": 9.45, "currency": "USD", "delivery_days": 2},
-            "placeholder": True,
+    """Return standard flat rate + express (EasyPost cheapest + $2 packaging)."""
+    standard_rate = {
+        "id": "flat_standard", "carrier": "DropKit", "service": "Standard",
+        "rate": 9.00, "currency": "USD", "delivery_days": 5,
+    }
+
+    # Try to get a real express rate from EasyPost
+    express_rate = None
+    placeholder = _is_placeholder()
+
+    if not placeholder:
+        cli = _client()
+        if cli:
+            try:
+                shipment = cli.shipment.create(
+                    from_address=_from_address(),
+                    to_address=to_address,
+                    parcel=parcel or _default_parcel(),
+                )
+                ep_rates = [
+                    {"id": r.id, "carrier": r.carrier, "service": r.service,
+                     "rate": float(r.rate), "currency": r.currency,
+                     "delivery_days": getattr(r, "est_delivery_days", None) or getattr(r, "delivery_days", None)}
+                    for r in shipment.rates
+                ]
+                if ep_rates:
+                    # Pick the fastest available (express/priority)
+                    express_candidates = [r for r in ep_rates if any(kw in r["service"].lower() for kw in ["express", "priority", "next"])]
+                    if express_candidates:
+                        fastest = min(express_candidates, key=lambda r: r["rate"])
+                    else:
+                        fastest = min(ep_rates, key=lambda r: r["delivery_days"] or 99)
+                    packaging_fee = EXPRESS_PACKAGING_FEE_CENTS / 100
+                    express_rate = {
+                        "id": fastest["id"],
+                        "carrier": fastest["carrier"],
+                        "service": f"Express ({fastest['service']})",
+                        "rate": fastest["rate"] + packaging_fee,
+                        "base_rate": fastest["rate"],
+                        "packaging_fee": packaging_fee,
+                        "currency": "USD",
+                        "delivery_days": fastest["delivery_days"],
+                    }
+            except Exception as e:
+                print(f"Error getting EasyPost rates for express: {e}")
+
+    # Fallback if no real rate available
+    if not express_rate:
+        express_rate = {
+            "id": "flat_express_fallback", "carrier": "DropKit", "service": "Express",
+            "rate": 15.00, "currency": "USD", "delivery_days": 2,
+            "base_rate": 13.00, "packaging_fee": 2.00,
         }
 
-    cli = _client()
-    if not cli: # Should not happen if _is_placeholder is False, but good for safety
-        return {"shipment_id": None, "rates": [], "cheapest": None, "priority": None, "placeholder": True, "error": "EasyPost client not initialized"}
-
-    try:
-        shipment = cli.shipment.create(
-            from_address=_from_address(),
-            to_address=to_address,
-            parcel=parcel or _default_parcel(),
-        )
-        rates = [
-            {
-                "id": r.id, "carrier": r.carrier, "service": r.service,
-                "rate": float(r.rate), "currency": r.currency,
-                "delivery_days": getattr(r, "est_delivery_days", None) or getattr(r, "delivery_days", None),
-            }
-            for r in shipment.rates
-        ]
-        if not rates:
-            return {"shipment_id": shipment.id, "rates": [], "cheapest": None, "priority": None, "placeholder": False}
-
-        # Cheapest overall
-        cheapest = min(rates, key=lambda r: r["rate"])
-        same_carrier = [r for r in rates if r["carrier"] == cheapest["carrier"]]
-        faster_same_carrier = [r for r in same_carrier if r["rate"] > cheapest["rate"]]
-        priority = min(faster_same_carrier, key=lambda r: r["rate"]) if faster_same_carrier else cheapest
-
-        return {
-            "shipment_id": shipment.id,
-            "rates": rates,
-            "cheapest": cheapest,
-            "priority": priority,
-            "placeholder": False,
-        }
-    except Exception as e:
-        # Log the error for debugging
-        print(f"Error creating EasyPost shipment: {e}")
-        return {"shipment_id": None, "rates": [], "cheapest": None, "priority": None, "placeholder": False, "error": str(e)}
+    return {
+        "shipment_id": "flat_rate_standard",
+        "rates": [standard_rate, express_rate],
+        "standard": standard_rate,
+        "express": express_rate,
+        "placeholder": placeholder,
+    }
 
 
 def buy_label(shipment_id: str, rate_id: str) -> Dict:
@@ -111,8 +123,8 @@ def buy_label(shipment_id: str, rate_id: str) -> Dict:
             "label_pdf_url": "https://example.com/labels/placeholder.pdf",
             "label_zpl_url": "https://example.com/labels/placeholder.zpl",
             "label_qr_url": "https://example.com/labels/placeholder.qr.png",
-            "carrier": "USPS",
-            "service": "Priority",
+            "carrier": "DropKit",
+            "service": "Standard" if "standard" in rate_id else "Express",
             "placeholder": True,
         }
 
@@ -124,7 +136,6 @@ def buy_label(shipment_id: str, rate_id: str) -> Dict:
         shipment = cli.shipment.buy(id=shipment_id, rate={"id": rate_id})
         label = shipment.postage_label
         base = label.label_url if label else None
-        # Format conversions (EasyPost supports `convert` for ZPL/PNG; QR via generate_form)
         return {
             "shipment_id": shipment.id,
             "rate_id": rate_id,
@@ -145,14 +156,14 @@ def get_tracking(tracking_code: str, carrier: Optional[str] = None) -> Dict:
     if _is_placeholder():
         return {
             "tracking_code": tracking_code,
-            "carrier": carrier or "USPS",
+            "carrier": carrier or "DropKit",
             "status": "pre_transit",
             "tracking_details": [],
             "placeholder": True,
         }
     cli = _client()
     if not cli:
-        return {"tracking_code": tracking_code, "carrier": carrier or "USPS", "status": "error", "tracking_details": [], "placeholder": True, "error": "EasyPost client not initialized"}
+        return {"tracking_code": tracking_code, "carrier": carrier or "DropKit", "status": "error", "tracking_details": [], "placeholder": True, "error": "EasyPost client not initialized"}
 
     try:
         t = cli.tracker.create(tracking_code=tracking_code, carrier=carrier) if carrier else cli.tracker.create(tracking_code=tracking_code)
@@ -168,15 +179,11 @@ def get_tracking(tracking_code: str, carrier: Optional[str] = None) -> Dict:
         }
     except Exception as e:
         print(f"Error getting EasyPost tracking: {e}")
-        return {"tracking_code": tracking_code, "carrier": carrier or "USPS", "status": "error", "tracking_details": [], "placeholder": False, "error": str(e)}
+        return {"tracking_code": tracking_code, "carrier": carrier or "DropKit", "status": "error", "tracking_details": [], "placeholder": False, "error": str(e)}
 
 
 def verify_address(address: dict) -> Dict:
-    """Run EasyPost address verification. Returns the canonical form + delta + issues.
-
-    In placeholder mode, treats anything with a 5-digit zip as valid. In real mode,
-    uses `verify_strict` so deliverability is enforced before label purchase.
-    """
+    """Run EasyPost address verification. Returns the canonical form + delta + issues."""
     if _is_placeholder():
         zip_ok = isinstance(address.get("zip"), str) and len(address["zip"].split("-")[0]) == 5
         return {
@@ -227,10 +234,7 @@ def verify_address(address: dict) -> Dict:
 
 
 def create_scan_form(shipment_ids: List[str]) -> Dict:
-    """USPS SCAN form / manifest — single barcode acknowledging all packages.
-
-    Saves ~1 minute per package at carrier pickup. Returns a downloadable PDF URL.
-    """
+    """USPS SCAN form / manifest — single barcode acknowledging all packages."""
     if _is_placeholder():
         return {
             "id": "sf_placeholder",
@@ -259,7 +263,6 @@ def download_label_pdf(label_pdf_url: str) -> Optional[bytes]:
     """Fetch an EasyPost label PDF into memory (for merging into batch PDFs)."""
     if not label_pdf_url:
         return None
-    # If it's a placeholder URL, we can't actually download it.
     if label_pdf_url.startswith("https://example.com/"):
         return None
     try:

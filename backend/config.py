@@ -7,13 +7,17 @@ load_dotenv()
 
 
 class Settings:
+    # Environment
+    ENVIRONMENT: str = os.environ.get("ENVIRONMENT", "development")  # development | production
+
     # Database
     MONGO_URL: str = os.environ["MONGODB_URL"]
     DB_NAME: str = os.environ["DB_NAME"]
-    # CORS origins: comma-separated list, defaults to specific origins for production
+    # CORS origins: comma-separated list
+    # NOTE: Production domain is drop-kit.app (with hyphen, .app TLD)
     CORS_ORIGINS: str = os.environ.get(
         "CORS_ORIGINS",
-        "https://dropkit.me,http://localhost:3000,http://127.0.0.1:3000"
+        "https://drop-kit.app,https://dropkit.me,http://localhost:3000,http://127.0.0.1:3000"
     )
 
     # Shopify

@@ -40,10 +40,10 @@ SAFEKEYVAULT = {
         "AMS1117-3.3 regulator",
         "16 MHz crystal",
     ],
-    "imageUrl": "https://github.com/user-attachments/assets/a55a89b5-dc85-487a-8d1f-d79f0d79a8d3",
+    "imageUrl": "/images/safekeyvault.png",
     "additionalImages": [
+        "https://github.com/user-attachments/assets/a55a89b5-dc85-487a-8d1f-d79f0d79a8d3",
         "https://github.com/user-attachments/assets/b230057c-1807-45fe-a675-53db1be5a1c6",
-        "https://github.com/user-attachments/assets/30a0be83-60e2-47df-aa38-df9df39aa876",
     ],
     "githubUrl": "https://github.com/Toasterfire-come/SafeKeyVault",
     "guideUrl": "https://github.com/Toasterfire-come/SafeKeyVault#readme",
