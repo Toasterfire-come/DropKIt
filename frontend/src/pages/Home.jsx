@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import api from "../lib/api";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
@@ -94,7 +94,7 @@ function WaitlistHero() {
       <div className="container py-24 md:py-32 grid md:grid-cols-12 gap-10 items-center">
         <div className="md:col-span-7 reveal">
           <span className="chip chip-orange mb-6 pulse-glow inline-block" data-testid="hero-launching-badge">
-            ◉ SHIPPING SOON
+            ◉ PLEDGE DRIVE OPEN
           </span>
           {referrerFirstName ? (
             <h1 className="font-display font-bold text-5xl md:text-7xl leading-[1.02] tracking-tight" data-testid="hero-personalised">
@@ -103,16 +103,15 @@ function WaitlistHero() {
             </h1>
           ) : (
             <h1 className="font-display font-bold text-5xl md:text-7xl leading-[1.02] tracking-tight">
-              Hardware projects,<br />
-              <span className="text-circuit">delivered.</span>
+              Pledge what you want.<br />
+              <span className="text-circuit">$2,000 unlocks it.</span>
             </h1>
           )}
           <p className="mt-6 text-lg text-cool max-w-xl leading-relaxed">
             {referrerFirstName ? (
-              <>A curated open-source electronics project, every month. {referrerFirstName}'s on the list — you'll skip ahead of everyone after them when you join below.</>
+              <>{referrerFirstName} is backing this — pledge any amount publicly or anonymously. Once the community hits <strong className="text-warm">$2,000 total</strong>, preorders open for everyone on our waitlist.</>
             ) : (
-              <>A curated open-source electronics project, every month. Microcontroller, all
-              components, full guide, and a community vote on what comes next.</>
+              <>Pledge any amount — it's tracked publicly (or stay anonymous). When we hit <strong className="text-warm">$2,000 total</strong> across all sponsors, preorders open for everyone on the waitlist.</>
             )}
           </p>
 
@@ -284,9 +283,9 @@ function BoardArt() {
 
 function HowItWorks() {
   const steps = [
-    { num: "01", icon: VoteIcon, title: "Vote", desc: "Subscribers vote each month on the project two months ahead." },
-    { num: "02", icon: Cpu, title: "Build", desc: "We source, kit, and write the guide for the winning project." },
-    { num: "03", icon: Package, title: "Receive", desc: "A complete kit lands on your doorstep. Solder, code, learn." },
+    { num: "01", icon: VoteIcon, title: "Pledge", desc: "Pledge any amount — public or anonymous. Every dollar counts toward the $2,000 goal." },
+    { num: "02", icon: Cpu, title: "Unlock", desc: "Once the community hits $2,000 total, preorders open to everyone on the waitlist." },
+    { num: "03", icon: Package, title: "Receive", desc: "Order your kit, then solder, code, and build with full guides and community support." },
   ];
   return (
     <section className="py-20 border-b border-[#30363D]">
@@ -554,98 +553,32 @@ function FAQSection() {
 
 /* ---------------------------------------- Sponsor Banner */
 function SponsorBanner() {
-  const [progress, setProgress] = useState(0);
-  const [scrollOffset, setScrollOffset] = useState(0);
-  const bannerRef = useRef(null);
-  const sponsorLogosRef = useRef(null);
-
-  const targetAmount = 5000;
-  const sponsorLogos = [
-    { id: 1, src: "/path/to/sponsor1.png", alt: "Sponsor 1" },
-    { id: 2, src: "/path/to/sponsor2.png", alt: "Sponsor 2" },
-    { id: 3, src: "/path/to/sponsor3.png", alt: "Sponsor 3" },
-    { id: 4, src: "/path/to/sponsor4.png", alt: "Sponsor 4" },
-    { id: 5, src: "/path/to/sponsor5.png", alt: "Sponsor 5" },
-    // Add more sponsor logos as needed
-  ];
-
-  // Simulate progress update
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setProgress((prevProgress) => {
-        if (prevProgress >= targetAmount) return targetAmount;
-        const increment = Math.random() * 500 + 100; // Random increment between 100 and 600
-        return Math.min(prevProgress + increment, targetAmount);
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Simulate sponsor logo scrolling
-  useEffect(() => {
-    const scrollInterval = setInterval(() => {
-      setScrollOffset((prevOffset) => {
-        const logosContainer = sponsorLogosRef.current;
-        if (!logosContainer) return prevOffset;
-
-        const containerWidth = logosContainer.offsetWidth;
-        const contentWidth = logosContainer.scrollWidth;
-        const newOffset = prevOffset + 1; // Adjust scroll speed here
-
-        if (newOffset >= contentWidth) {
-          return 0; // Loop back to the beginning
-        }
-        return newOffset;
-      });
-    }, 50); // Adjust animation speed here
-    return () => clearInterval(scrollInterval);
-  }, []);
-
+  // Community pledge progress bar — $2,000 unlocks preorders for everyone
+  const progress = 0;
+  const targetAmount = 2000;
   const progressPercentage = (progress / targetAmount) * 100;
 
   return (
-    <section ref={bannerRef} className="bg-[#161B22] py-6 border-b border-[#30363D] text-center" data-testid="sponsor-banner">
+    <section className="bg-[#161B22] py-8 border-b border-[#30363D] text-center" data-testid="sponsor-banner">
       <div className="container">
-        <div className="mb-4">
-          <span className="font-mono text-xs uppercase tracking-widest text-cool mr-2">//</span>
-          <span className="font-display font-bold text-xl md:text-2xl">Sponsors & Partners Go Here</span>
+        <div className="mb-3">
+          <span className="section-label">// COMMUNITY PLEDGE</span>
         </div>
-        <div className="relative h-12 w-full max-w-3xl mx-auto mb-4 rounded-full overflow-hidden bg-graphite">
+        <p className="font-display font-bold text-2xl md:text-3xl mb-4">
+          Pledge any amount to push us to <span className="text-circuit">$2,000</span>
+        </p>
+        <p className="text-cool text-sm max-w-xl mx-auto mb-5">
+          Your pledge is posted publicly — or stays anonymous. Once the total hits $2,000, preorders open for everyone on our waitlist. No limited drops.
+        </p>
+        <div className="relative h-14 w-full max-w-3xl mx-auto rounded-full overflow-hidden bg-graphite">
           <div
             className="h-full bg-circuit transition-all duration-700 ease-out"
             style={{ width: `${progressPercentage}%` }}
             data-testid="sponsor-progress-bar"
           ></div>
-          <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white" data-testid="sponsor-progress-text">
-            ${progress.toLocaleString()} / $5000
+          <span className="absolute inset-0 flex items-center justify-center text-lg font-bold text-white" data-testid="sponsor-progress-text">
+            $0 / $2,000
           </span>
-        </div>
-        <div className="text-cool text-sm font-mono uppercase tracking-widest mb-4"></div>
-        <div className="overflow-hidden py-2">
-          <div
-            ref={sponsorLogosRef}
-            className="flex space-x-8 animate-scroll-left"
-            style={{ transform: `translateX(-${scrollOffset}px)` }}
-            data-testid="sponsor-logos-container"
-          >
-            {sponsorLogos.map((logo) => (
-              <img
-                key={logo.id}
-                src={logo.src}
-                alt={logo.alt}
-                className="h-10 w-auto object-contain opacity-70 hover:opacity-100 transition-opacity duration-200"
-              />
-            ))}
-            {/* Duplicate logos for seamless looping */}
-            {sponsorLogos.map((logo) => (
-              <img
-                key={`${logo.id}-duplicate`}
-                src={logo.src}
-                alt={logo.alt}
-                className="h-10 w-auto object-contain opacity-70 hover:opacity-100 transition-opacity duration-200"
-              />
-            ))}
-          </div>
         </div>
       </div>
     </section>

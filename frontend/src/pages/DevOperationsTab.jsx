@@ -292,8 +292,12 @@ function ShopFloor() {
   const evtSrc = useRef(null);
 
   useEffect(() => {
-    // Use relative URL with fallback for local development
-    const url = `${process.env.REACT_APP_BACKEND_URL || ""}/api/dev/ops/feed`;
+    // Use relative URL with fallback for local development.
+    // In production (Docker/nginx build), NODE_ENV is "production" so relative URLs
+    // route through the Cloudflare tunnel → nginx → backend.
+    const base = process.env.REACT_APP_BACKEND_URL ||
+      (process.env.NODE_ENV === "production" ? "" : "http://127.0.0.1:8000");
+    const url = `${base}/api/dev/ops/feed`;
     const es = new EventSource(url, { withCredentials: true });
     evtSrc.current = es;
     es.onopen = () => setConnected(true);

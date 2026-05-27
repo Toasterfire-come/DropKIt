@@ -9,14 +9,14 @@ import { useUIMode } from "../lib/contexts";
 const STATES = ["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC"];
 
 export default function Subscribe() {
-  useDocMeta({ title: "Subscribe to DropKit — $40/mo monthly hardware kits", description: "One curated open-source electronics project shipped every month. Cancel anytime. Free shipping in the US. $40/month." });
+  useDocMeta({ title: "Subscribe to DropKit — $40/mo monthly hardware kits", description: "One curated open-source electronics project shipped every month. Cancel anytime. Flat $9 shipping in the US. $40/month." });
   const { mode } = useUIMode();
   const [form, setForm] = useState({
     email: "", name: "", street1: "", street2: "",
     city: "", state: "CA", zip: "", phone: "",
   });
   const [quote, setQuote] = useState(null);
-  const [choice, setChoice] = useState("cheapest");
+  const [shippingChoice, setShippingChoice] = useState("standard");
   const [loading, setLoading] = useState(false);
 
   if (mode !== "live") {
@@ -25,7 +25,7 @@ export default function Subscribe() {
         <span className="section-label">// SUBSCRIBE</span>
         <h1 className="mt-3 font-display text-4xl md:text-5xl font-bold">Subscriptions open soon</h1>
         <p className="mt-4 text-cool">
-          Subscriptions and gifts go live at launch. Click "Join Waitlist" in the header to be first in line.
+          Subscriptions go live once we hit the <strong className="text-warm">$2,000 community pledge goal</strong>. Join the waitlist to be first in line.
         </p>
         <Link to="/" className="btn-primary mt-8 inline-flex">Back home</Link>
       </section>
@@ -48,7 +48,6 @@ export default function Subscribe() {
         },
       });
       setQuote(r.data);
-      // Auto-scroll to quote
       setTimeout(() => document.getElementById("quote-section")?.scrollIntoView({ behavior: "smooth" }), 100);
     } catch (err) {
       toast.error(formatApiError(err));
@@ -61,11 +60,11 @@ export default function Subscribe() {
     setLoading(true);
     try {
       const r = await api.post("/checkout/start", {
-        quote_id: quote.quote_id, rate_choice: choice,
+        quote_id: quote.quote_id,
+        shipping_choice: shippingChoice,
       });
-      // In production this navigates to Shopify checkout; in placeholder mode we toast.
       if (r.data.placeholder_shopify) {
-        toast.success("Redirecting to checkout (placeholder Shopify) — would land on the live store with rate + tax pre-applied.");
+        toast.success("Redirecting to checkout (placeholder Shopify) — would land on the live store with shipping + tax pre-applied.");
       }
       window.location.href = r.data.redirect_url;
     } catch (err) {
@@ -82,10 +81,28 @@ export default function Subscribe() {
         One project,<br /><span className="text-circuit">every month.</span>
       </h1>
       <p className="mt-6 text-cool max-w-2xl text-lg">
-        Enter your shipping address — we'll show you live rates and tax in real time, then take you to checkout.
+        Enter your shipping address below. You'll see your shipping cost upfront before heading to checkout.
       </p>
 
-      <form onSubmit={getQuote} className="mt-12 grid md:grid-cols-2 gap-6 max-w-4xl" data-testid="subscribe-form">
+      {/* ── Shipping info shown upfront ── */}
+      <div className="mt-8 grid sm:grid-cols-2 gap-4 max-w-4xl">
+        <div className="card p-5 flex items-center gap-4">
+          <Truck size={28} strokeWidth={1.5} className="text-circuit flex-shrink-0" />
+          <div>
+            <p className="font-display font-bold text-lg">Standard — $9.00</p>
+            <p className="font-mono text-xs text-cool">5 business days</p>
+          </div>
+        </div>
+        <div className="card p-5 flex items-center gap-4">
+          <Zap size={28} strokeWidth={1.5} className="text-circuit flex-shrink-0" />
+          <div>
+            <p className="font-display font-bold text-lg">Express — $11.00</p>
+            <p className="font-mono text-xs text-cool">2 business days · +$2 packaging</p>
+          </div>
+        </div>
+      </div>
+
+      <form onSubmit={getQuote} className="mt-8 grid md:grid-cols-2 gap-6 max-w-4xl" data-testid="subscribe-form">
         <Field label="Email" full>
           <input type="email" required name="email" value={form.email} onChange={change}
             placeholder="you@workbench.dev" className="input" data-testid="sub-email" />
@@ -115,45 +132,45 @@ export default function Subscribe() {
         </Field>
         <div className="md:col-span-2 flex items-center gap-4 mt-2">
           <button type="submit" disabled={loading} className="btn-primary" data-testid="sub-get-quote">
-            {loading ? "Calculating…" : "See live rates"} <ArrowRight size={16} strokeWidth={1.5} />
+            {loading ? "Calculating…" : "Get your quote"} <ArrowRight size={16} strokeWidth={1.5} />
           </button>
           <span className="font-mono text-xs text-cool">
-            <span className="text-warm">$40</span>/mo subscription · shipping &amp; tax calculated next
+            <span className="text-warm">$40</span>/mo subscription · flat $9 shipping
           </span>
         </div>
       </form>
 
       {quote && (
         <section id="quote-section" className="mt-16 max-w-4xl" data-testid="quote-section">
-          <span className="section-label">// PICK A SHIPPING SPEED</span>
-          <h2 className="mt-3 font-display text-3xl font-bold">Live rates from {quote.options.cheapest.rate.carrier}</h2>
+          <span className="section-label">// PICK SHIPPING SPEED</span>
+          <h2 className="mt-3 font-display text-3xl font-bold">Shipping & tax quote</h2>
           <p className="mt-2 text-cool text-sm">
-            We default to the cheapest option from your carrier. Upgrade to priority for faster delivery.
+            Choose your shipping speed below. Your address has been verified.
           </p>
 
           <div className="mt-8 grid sm:grid-cols-2 gap-4">
             <RateCard
-              type="cheapest" icon={Truck} title="Cheapest"
-              rate={quote.options.cheapest} selected={choice === "cheapest"} onSelect={() => setChoice("cheapest")}
+              type="standard" icon={Truck} title="Standard $9"
+              rate={quote.shipping.standard} selected={shippingChoice === "standard"} onSelect={() => setShippingChoice("standard")}
             />
             <RateCard
-              type="priority" icon={Zap} title="Priority"
-              rate={quote.options.priority} selected={choice === "priority"} onSelect={() => setChoice("priority")}
+              type="express" icon={Zap} title="Express $11"
+              rate={quote.shipping.express} selected={shippingChoice === "express"} onSelect={() => setShippingChoice("express")}
             />
           </div>
 
           <div className="mt-8 card p-6 grid sm:grid-cols-2 gap-6 items-center">
             <dl className="font-mono text-sm space-y-2 text-cool">
               <Row label="Subscription" value={`$${(quote.subscription_cents / 100).toFixed(2)}`} />
-              <Row label="Shipping" value={`$${((quote.options[choice].shipping_cents) / 100).toFixed(2)}`} />
-              <Row label="Tax" value={quote.placeholder_tax ? "calculated at checkout" : `$${(quote.options[choice].tax_cents / 100).toFixed(2)}`} />
-              <Row label="Total today" value={`$${(quote.options[choice].total_cents / 100).toFixed(2)}`} bold />
+              <Row label="Shipping" value={`$${((quote.shipping[shippingChoice].shipping_cents) / 100).toFixed(2)}`} />
+              <Row label="Tax" value={quote.placeholder_tax ? "calculated at checkout" : `$${(quote.shipping[shippingChoice].tax_cents / 100).toFixed(2)}`} />
+              <Row label="Total today" value={`$${(quote.shipping[shippingChoice].total_cents / 100).toFixed(2)}`} bold />
             </dl>
             <div className="text-right">
               <button onClick={goToCheckout} disabled={loading} className="btn-primary w-full justify-center" data-testid="sub-checkout-btn">
                 {loading ? "…" : "Continue to checkout"} <ArrowRight size={16} strokeWidth={1.5} />
               </button>
-              <p className="mt-3 text-xs text-cool">Powered by Shopify Checkout · Stripe-secured</p>
+              <p className="mt-3 text-xs text-cool">Shipping: {shippingChoice === "standard" ? "Standard ($9)" : "Express ($11)"} · Shopify Checkout</p>
             </div>
           </div>
         </section>

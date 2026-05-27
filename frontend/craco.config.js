@@ -1,6 +1,5 @@
 // craco.config.js
 const path = require("path");
-require("dotenv").config();
 
 const isDevServer = process.env.NODE_ENV !== "production";
 const enableHealthCheck = process.env.ENABLE_HEALTH_CHECK === "true";
@@ -55,6 +54,17 @@ const webpackConfig = {
     },
   },
   devServer: (devServerConfig) => {
+    // Proxy /api/* requests to the backend during local development.
+    // This ensures same-origin requests whether accessing via localhost:3000
+    // or through the Cloudflare tunnel. Avoids Chrome Private Network Access
+    // (CORS-RFC1918) blocks and eliminates all CORS issues for API calls.
+    devServerConfig.proxy = {
+      "/api": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+    };
+
     if (enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
       const originalSetupMiddlewares = devServerConfig.setupMiddlewares;
       

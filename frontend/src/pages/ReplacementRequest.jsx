@@ -39,7 +39,7 @@ export default function ReplacementRequest() {
       </Link>
       <div className="mt-6 flex items-center gap-3">
         <Wrench size={28} strokeWidth={1.5} className="text-circuit" />
-        <span className="section-label">// SUPPORT</span>
+        <span className="section-label">SUPPORT</span>
       </div>
       <h1 className="mt-3 font-display text-4xl md:text-5xl font-bold">Request a replacement</h1>
       <p className="mt-3 text-cool max-w-xl text-sm">
