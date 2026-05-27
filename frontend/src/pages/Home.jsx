@@ -94,7 +94,7 @@ function WaitlistHero() {
       <div className="container py-24 md:py-32 grid md:grid-cols-12 gap-10 items-center">
         <div className="md:col-span-7 reveal">
           <span className="chip chip-orange mb-6 pulse-glow inline-block" data-testid="hero-launching-badge">
-            ◉ PLEDGE DRIVE OPEN
+            ◉ SHIPPING SOON
           </span>
           {referrerFirstName ? (
             <h1 className="font-display font-bold text-5xl md:text-7xl leading-[1.02] tracking-tight" data-testid="hero-personalised">
@@ -103,15 +103,16 @@ function WaitlistHero() {
             </h1>
           ) : (
             <h1 className="font-display font-bold text-5xl md:text-7xl leading-[1.02] tracking-tight">
-              Pledge what you want.<br />
-              <span className="text-circuit">$2,000 unlocks it.</span>
+              Hardware projects,<br />
+              <span className="text-circuit">delivered.</span>
             </h1>
           )}
           <p className="mt-6 text-lg text-cool max-w-xl leading-relaxed">
             {referrerFirstName ? (
-              <>{referrerFirstName} is backing this — pledge any amount publicly or anonymously. Once the community hits <strong className="text-warm">$2,000 total</strong>, preorders open for everyone on our waitlist.</>
+              <>A curated open-source electronics project, every month. {referrerFirstName}'s on the list — you'll skip ahead of everyone after them when you join below.</>
             ) : (
-              <>Pledge any amount — it's tracked publicly (or stay anonymous). When we hit <strong className="text-warm">$2,000 total</strong> across all sponsors, preorders open for everyone on the waitlist.</>
+              <>A curated open-source electronics project, every month. Microcontroller, all
+              components, full guide, and a community vote on what comes next.</>
             )}
           </p>
 
@@ -283,9 +284,9 @@ function BoardArt() {
 
 function HowItWorks() {
   const steps = [
-    { num: "01", icon: VoteIcon, title: "Pledge", desc: "Pledge any amount — public or anonymous. Every dollar counts toward the $2,000 goal." },
-    { num: "02", icon: Cpu, title: "Unlock", desc: "Once the community hits $2,000 total, preorders open to everyone on the waitlist." },
-    { num: "03", icon: Package, title: "Receive", desc: "Order your kit, then solder, code, and build with full guides and community support." },
+    { num: "01", icon: VoteIcon, title: "Vote", desc: "Subscribers vote each month on the project two months ahead." },
+    { num: "02", icon: Cpu, title: "Build", desc: "We source, kit, and write the guide for the winning project." },
+    { num: "03", icon: Package, title: "Receive", desc: "A complete kit lands on your doorstep. Solder, code, learn." },
   ];
   return (
     <section className="py-20 border-b border-[#30363D]">
@@ -553,32 +554,37 @@ function FAQSection() {
 
 /* ---------------------------------------- Sponsor Banner */
 function SponsorBanner() {
-  // Community pledge progress bar — $2,000 unlocks preorders for everyone
+  // Hard-coded at $0 — update manually when sponsorship is secured
   const progress = 0;
   const targetAmount = 2000;
   const progressPercentage = (progress / targetAmount) * 100;
 
   return (
-    <section className="bg-[#161B22] py-8 border-b border-[#30363D] text-center" data-testid="sponsor-banner">
+    <section className="bg-[#161B22] py-6 border-b border-[#30363D] text-center" data-testid="sponsor-banner">
       <div className="container">
-        <div className="mb-3">
-          <span className="section-label">// COMMUNITY PLEDGE</span>
+        <div className="mb-4">
+          <span className="font-display font-bold text-xl md:text-2xl">Sponsors & Partners Go Here</span>
         </div>
-        <p className="font-display font-bold text-2xl md:text-3xl mb-4">
-          Pledge any amount to push us to <span className="text-circuit">$2,000</span>
-        </p>
-        <p className="text-cool text-sm max-w-xl mx-auto mb-5">
-          Your pledge is posted publicly — or stays anonymous. Once the total hits $2,000, preorders open for everyone on our waitlist. No limited drops.
-        </p>
-        <div className="relative h-14 w-full max-w-3xl mx-auto rounded-full overflow-hidden bg-graphite">
+        <div className="relative h-12 w-full max-w-3xl mx-auto mb-4 rounded-full overflow-hidden bg-graphite">
           <div
             className="h-full bg-circuit transition-all duration-700 ease-out"
             style={{ width: `${progressPercentage}%` }}
             data-testid="sponsor-progress-bar"
           ></div>
-          <span className="absolute inset-0 flex items-center justify-center text-lg font-bold text-white" data-testid="sponsor-progress-text">
-            $0 / $2,000
+          <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white" data-testid="sponsor-progress-text">
+            $0 / $2000
           </span>
+        </div>
+        <div className="max-w-3xl mx-auto text-left space-y-2 text-sm text-cool">
+          <p className="font-mono text-xs uppercase tracking-widest text-warm">// FUNDING INFO</p>
+          <p>
+            We are <strong className="text-warm">not raising money from our community</strong> — only through
+            sponsorships and partnerships. This <strong className="text-warm">$2,000 goal</strong> will go toward
+            3D printers, camera equipment, packaging, and official business registration.
+          </p>
+          <p>
+            Once we reach our goal, we will open pre-orders to the waitlist.
+          </p>
         </div>
       </div>
     </section>
