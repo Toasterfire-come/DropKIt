@@ -5,13 +5,9 @@ easypost==9.0.0
 email_validator==2.2.0
 fastapi==0.115.0
 google-ai-generativelanguage==0.6.15
-google-api-core==2.30.3
 google-api-python-client==2.151.0
 google-auth-httplib2==0.4.0
 google-auth-oauthlib==1.2.1
-google-auth==2.48.0
-google-genai==2.0.1
-google-generativeai==0.8.6
 httpx==0.28.1
 motor==3.6.0
 pillow==12.2.0
