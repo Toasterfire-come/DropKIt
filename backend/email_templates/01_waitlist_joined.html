@@ -1,19 +1,15 @@
-<!-- Klaviyo metric: "Joined Waitlist"
-     Profile fields: first_name, referral_code, share_url
-     Event properties: referral_code, share_url, referred_by_code, source
--->
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
   <tr>
     <td>
       <p style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#E8510A;letter-spacing:0.15em;text-transform:uppercase;margin:0 0 12px;">// YOU'RE ON THE LIST</p>
       <h1 style="font-family:'Space Grotesk',Helvetica,Arial,sans-serif;font-size:30px;line-height:1.1;font-weight:700;margin:0 0 16px;">
-        Welcome, {{ person|lookup:'first_name'|default:'Maker' }}.
+        Welcome, {{ first_name }}.
       </h1>
       <p style="margin:0 0 16px;color:#F0F0EE;">
         You're locked in for the first DropKit. We'll email you the moment subscriptions open.
       </p>
       <p style="margin:0 0 24px;color:#8B949E;font-size:14px;">
-        $40/month + shipping · United States · open-source hardware · community-voted projects.
+        $40/month + shipping &middot; United States &middot; open-source hardware &middot; community-voted projects.
       </p>
 
       <h2 style="font-family:'Space Grotesk',Helvetica,Arial,sans-serif;font-size:20px;font-weight:700;margin:32px 0 8px;">
@@ -27,17 +23,17 @@
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:16px 0 24px;background:#21262D;border:1px solid #30363D;">
         <tr>
           <td style="padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8510A;word-break:break-all;">
-            {{ event.share_url }}
+            {{ share_url }}
           </td>
         </tr>
       </table>
 
-      <a href="{{ event.share_url }}" style="display:inline-block;background:#E8510A;color:#0D1117;font-weight:600;font-size:14px;padding:12px 22px;text-decoration:none;">
-        Open my dashboard →
+      <a href="{{ share_url }}" style="display:inline-block;background:#E8510A;color:#0D1117;font-weight:600;font-size:14px;padding:12px 22px;text-decoration:none;">
+        Open my dashboard &rarr;
       </a>
 
       <p style="margin:24px 0 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:#8B949E;letter-spacing:0.1em;text-transform:uppercase;">
-        YOUR CODE · <span style="color:#E8510A;">{{ event.referral_code }}</span>
+        YOUR CODE &middot; <span style="color:#E8510A;">{{ referral_code }}</span>
       </p>
     </td>
   </tr>

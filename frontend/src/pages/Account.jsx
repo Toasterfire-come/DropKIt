@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import api, { formatApiError } from "../lib/api";
 import { toast } from "sonner";
-import { Pause, Play, SkipForward, ExternalLink, Gift, LogOut } from "lucide-react";
+import { Pause, Play, SkipForward, ExternalLink, Gift, LogOut, MapPin } from "lucide-react";
 import { useAuth } from "../lib/contexts";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
@@ -20,6 +20,22 @@ import {
 } from "../components/ui/table";
 import { cn } from "../lib/utils";
 
+const STATES = ["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC"];
+
+function StatusBadge({ status }) {
+  const colors = {
+    active: "bg-flux/20 text-flux border-flux/40",
+    paused: "bg-yellow-500/20 text-yellow-400 border-yellow-500/40",
+    cancelled: "bg-red-500/20 text-red-400 border-red-500/40",
+    inactive: "bg-cool/20 text-cool border-cool/40",
+  };
+  return (
+    <span className={`chip ${colors[status] || colors.inactive}`}>
+      {status ? status.charAt(0).toUpperCase() + status.slice(1) : "Inactive"}
+    </span>
+  );
+}
+
 export default function Account() {
   const { user, login, logout } = useAuth();
   const navigate = useNavigate();
@@ -31,6 +47,24 @@ export default function Account() {
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [orders, setOrders] = useState([]);
 
+  // Subscription state
+  const [sub, setSub] = useState(null);
+  const [subLoading, setSubLoading] = useState(false);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [addr, setAddr] = useState({ street1: "", street2: "", city: "", state: "CA", zip: "", phone: "" });
+
+  const loadSubscription = useCallback(async () => {
+    try {
+      const r = await api.get("/subscription");
+      setSub(r.data);
+      if (r.data?.shipping_address) {
+        setAddr(r.data.shipping_address);
+      }
+    } catch {
+      // Not subscribed — that's fine
+    }
+  }, []);
+
   useEffect(() => {
     if (!user) {
       navigate("/sign-in");
@@ -40,15 +74,15 @@ export default function Account() {
     setEmail(user.email || "");
     setLoading(false);
     api.get("/orders").then((r) => setOrders(r.data));
-  }, [user, navigate]);
+    loadSubscription();
+  }, [user, navigate, loadSubscription]);
 
   const save = async () => {
     if (!name || !email) return;
     try {
       const r = await api.patch("/users/me", { name, email });
       toast.success("Profile updated.");
-      // Re-login to refresh session
-      await login(email, password || r.data.password); // Use new password if changed, else old one
+      await login(email, password || r.data.password);
       setEditing(false);
     } catch (err) {
       toast.error(formatApiError(err));
@@ -66,7 +100,6 @@ export default function Account() {
       toast.success("Password updated.");
       setPassword("");
       setPasswordConfirm("");
-      // Re-login to refresh session
       await login(email, password);
     } catch (err) {
       toast.error(formatApiError(err));
@@ -79,12 +112,44 @@ export default function Account() {
     navigate("/sign-in");
   };
 
+  // ── Subscription actions ──
+  const subAction = async (action, label) => {
+    setSubLoading(true);
+    try {
+      const r = await api.post(`/subscription/${action}`);
+      setSub((prev) => ({ ...prev, status: r.data.status }));
+      toast.success(`Subscription ${label}.`);
+      loadSubscription();
+    } catch (err) {
+      toast.error(formatApiError(err));
+    } finally {
+      setSubLoading(false);
+    }
+  };
+
+  const saveAddress = async (e) => {
+    e.preventDefault();
+    setSubLoading(true);
+    try {
+      const r = await api.put("/subscription/address", addr);
+      setSub((prev) => ({ ...prev, shipping_address: r.data.shipping_address }));
+      toast.success("Shipping address updated.");
+      setShowAddressForm(false);
+      loadSubscription();
+    } catch (err) {
+      toast.error(formatApiError(err));
+    } finally {
+      setSubLoading(false);
+    }
+  };
+
   if (loading) return <div className="container py-16">Loading...</div>;
 
   return (
     <section className="container py-16">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-8">
+          {/* ── Profile ── */}
           <Card>
             <CardHeader>
               <CardTitle>Account Details</CardTitle>
@@ -157,8 +222,122 @@ export default function Account() {
             </CardContent>
           </Card>
 
-          <Separator className="my-8" />
+          {/* ── Subscription ── */}
+          {sub && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Subscription</CardTitle>
+                  <StatusBadge status={sub.status} />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-cool">Plan</span>
+                    <p className="font-semibold">{sub.plan}</p>
+                  </div>
+                  <div>
+                    <span className="text-cool">Price</span>
+                    <p className="font-semibold">${(sub.price_cents / 100).toFixed(2)}/mo</p>
+                  </div>
+                  {sub.next_billing_date && (
+                    <div>
+                      <span className="text-cool">Next billing</span>
+                      <p className="font-semibold">{new Date(sub.next_billing_date).toLocaleDateString()}</p>
+                    </div>
+                  )}
+                  {sub.stripe_customer_id && (
+                    <div>
+                      <span className="text-cool">Payment</span>
+                      <p className="font-semibold text-flux">Stripe connected</p>
+                    </div>
+                  )}
+                </div>
 
+                {/* Shipping address */}
+                <Separator />
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-semibold flex items-center gap-2">
+                      <MapPin size={14} className="text-cool" /> Shipping Address
+                    </span>
+                    <Button variant="ghost" size="sm" onClick={() => setShowAddressForm(!showAddressForm)}>
+                      {showAddressForm ? "Cancel" : "Edit"}
+                    </Button>
+                  </div>
+                  {showAddressForm ? (
+                    <form onSubmit={saveAddress} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="sm:col-span-2">
+                        <Label>Street</Label>
+                        <Input value={addr.street1} onChange={(e) => setAddr({...addr, street1: e.target.value})} required className="mt-1" />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <Label>Apt / Suite</Label>
+                        <Input value={addr.street2} onChange={(e) => setAddr({...addr, street2: e.target.value})} className="mt-1" />
+                      </div>
+                      <div>
+                        <Label>City</Label>
+                        <Input value={addr.city} onChange={(e) => setAddr({...addr, city: e.target.value})} required className="mt-1" />
+                      </div>
+                      <div>
+                        <Label>State</Label>
+                        <select value={addr.state} onChange={(e) => setAddr({...addr, state: e.target.value})} className="input mt-1">
+                          {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <Label>ZIP</Label>
+                        <Input value={addr.zip} onChange={(e) => setAddr({...addr, zip: e.target.value})} required className="mt-1" />
+                      </div>
+                      <div>
+                        <Label>Phone</Label>
+                        <Input value={addr.phone} onChange={(e) => setAddr({...addr, phone: e.target.value})} className="mt-1" />
+                      </div>
+                      <div className="sm:col-span-2 flex justify-end">
+                        <Button type="submit" disabled={subLoading}>Save Address</Button>
+                      </div>
+                    </form>
+                  ) : sub.shipping_address ? (
+                    <p className="text-sm text-cool">
+                      {sub.shipping_address.street1}
+                      {sub.shipping_address.street2 ? `, ${sub.shipping_address.street2}` : ""}
+                      <br />
+                      {sub.shipping_address.city}, {sub.shipping_address.state} {sub.shipping_address.zip}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-cool">No shipping address set.</p>
+                  )}
+                </div>
+
+                {/* Action buttons */}
+                <Separator />
+                <div className="flex flex-wrap gap-2">
+                  {sub.status === "active" && (
+                    <Button variant="outline" size="sm" disabled={subLoading}
+                      onClick={() => subAction("pause", "paused")}>
+                      <Pause size={14} className="mr-1" /> Pause
+                    </Button>
+                  )}
+                  {sub.status === "paused" && (
+                    <Button variant="outline" size="sm" disabled={subLoading}
+                      onClick={() => subAction("resume", "resumed")}>
+                      <Play size={14} className="mr-1" /> Resume
+                    </Button>
+                  )}
+                  {(sub.status === "active" || sub.status === "paused") && (
+                    <Button variant="outline" size="sm" disabled={subLoading}
+                      onClick={() => subAction("cancel", "cancelled")}
+                      className="text-red-400 border-red-400/30 hover:bg-red-500/10">
+                      <SkipForward size={14} className="mr-1" /> Cancel at period end
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ── Orders ── */}
           <Card>
             <CardHeader>
               <CardTitle>Order History</CardTitle>
@@ -180,7 +359,7 @@ export default function Account() {
                   <TableBody>
                     {orders.map((order) => (
                       <TableRow key={order.id}>
-                        <TableCell className="font-medium">{order.id}</TableCell>
+                        <TableCell className="font-medium">{order.id.slice(0, 8)}...</TableCell>
                         <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
                         <TableCell>${(order.total_price / 100).toFixed(2)}</TableCell>
                         <TableCell className="text-right">{order.status}</TableCell>

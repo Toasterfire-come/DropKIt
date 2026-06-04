@@ -1,5 +1,5 @@
-tunnel: c565e11a-451b-448f-8a79-07842a109f58
-credentials-file: /Users/ckiefer/.cloudflared/c565e11a-451b-448f-8a79-07842a109f58.json
+tunnel: bde1552f-8288-4bb3-a09a-6b97a7b4096e
+credentials-file: C:\Users\Carterpc\.cloudflared\bde1552f-8288-4bb3-a09a-6b97a7b4096e.json
 
 ingress:
   # API routes go to backend

@@ -48,8 +48,8 @@ function Header({ onOpenWaitlist }) {
   return (
     <header className="sticky top-0 z-40 border-b border-[#30363D] bg-pcb/85 backdrop-blur-md">
       <div className="container flex items-center justify-between h-16">
-        <Link to="/" className="flex items-center gap-2.5 font-display font-bold text-xl tracking-tight" data-testid="header-logo">
-          <Cpu size={22} strokeWidth={1.5} className="text-circuit" />
+        <Link to="/" className="flex items-center gap-2 font-display font-bold text-xl tracking-tight" data-testid="header-logo">
+          <img src="/images/Logo2.png" alt="DropKIt" className="h-8 w-auto" />
           <span>Drop<span className="text-circuit">Kit</span></span>
         </Link>
 
@@ -155,7 +155,7 @@ function Footer() {
       <div className="container py-14 grid md:grid-cols-4 gap-10">
         <div className="md:col-span-2">
           <Link to="/" className="flex items-center gap-2 font-display font-bold text-lg">
-            <Cpu size={20} strokeWidth={1.5} className="text-circuit" />
+            <img src="/images/Logo2.png" alt="DropKIt" className="h-7 w-auto" />
             Drop<span className="text-circuit">Kit</span>
           </Link>
           <p className="mt-4 text-cool max-w-md leading-relaxed text-sm">

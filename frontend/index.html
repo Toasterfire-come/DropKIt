@@ -46,7 +46,7 @@
         <link rel="alternate" type="application/rss+xml" title="DropKit · Projects" href="/feed.xml" />
         <link rel="sitemap" type="application/xml" title="DropKit sitemap" href="/sitemap.xml" />
 
-        <!-- Performance: preconnect to fonts backend -->
+        <!-- Performance: preconnect to fonts -->
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link rel="dns-prefetch" href="/" />
@@ -108,17 +108,11 @@
           }
         }
         </script>
-
-        <!-- Security headers are set via HTTP headers by nginx (production) / cloudflared.
-             Do NOT use <meta http-equiv> for security headers — they are less restrictive than
-             HTTP headers, and X-Frame-Options may only be set via HTTP headers, not <meta>. -->
-        
-
-        
     </head>
     <body>
         <noscript>DropKit needs JavaScript to load the interactive maker dashboard. The full project catalog is available at <a href="https://github.com/Toasterfire-come/DropKit-Projects">github.com/Toasterfire-come/DropKit-Projects</a>.</noscript>
         <div id="root"></div>
+        <script type="module" src="/src/index.jsx"></script>
 
         <script>
             !(function (t, e) {

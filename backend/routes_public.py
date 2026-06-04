@@ -104,6 +104,12 @@ async def join_waitlist(payload: WaitlistJoin):
             first_name=first_name,
             custom_props=custom_props,
         ))
+        # Schedule the "what's next" drip email (~3 days later)
+        mailer.fire(mailer.waitlist_drip_followup(
+            email=payload.email,
+            first_name=first_name,
+            referral_code=code,
+        ))
 
         # If this signup was referred, notify the referrer + check priority unlock
         if referrer_code:
@@ -607,3 +613,54 @@ def _gen_gift_code() -> str:
     chunk = "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4))
     year = datetime.now(timezone.utc).year
     return f"MAKER-{chunk}-{year}"
+
+
+# ============================================================
+# Public — Order tracking (no auth required)
+# ============================================================
+@router.get("/track/{token}")
+async def track_order(token: str):
+    """Public order tracking page — no auth required.
+
+    Returns order status, shipment tracking code, and a timeline of events.
+    The token is a unique hash set on the order at creation time.
+    """
+    db = get_db()
+    order = await db.orders.find_one({"trackingToken": token})
+    if not order:
+        # Also check by order_id directly as fallback
+        if ObjectId.is_valid(token):
+            order = await db.orders.find_one({"_id": ObjectId(token)})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Find associated shipment
+    shipment = await db.shipments.find_one({"order_id": str(order["_id"])})
+
+    # Build timeline
+    timeline = []
+    if order.get("createdAt"):
+        timeline.append({"event": "Order placed", "date": order["createdAt"], "status": "completed"})
+    if shipment and shipment.get("created_at"):
+        timeline.append({"event": "Label created", "date": shipment["created_at"], "status": "completed"})
+    if order.get("kittingStatus"):
+        timeline.append({"event": "Being packed", "date": order.get("updatedAt") or order.get("createdAt"), "status": "in_progress" if order.get("status") != "fulfilled" else "completed"})
+    if order.get("fulfilledAt"):
+        timeline.append({"event": "Shipped", "date": order["fulfilledAt"], "status": "completed"})
+    if order.get("tracking_status") in ("delivered", "available_for_pickup"):
+        timeline.append({"event": "Delivered", "date": order.get("updatedAt"), "status": "completed"})
+
+    return {
+        "order_id": str(order["_id"]),
+        "status": order.get("status", "pending"),
+        "kitting_status": order.get("kittingStatus", "pending"),
+        "tracking_status": order.get("tracking_status"),
+        "shipment": {
+            "tracking_code": (shipment or {}).get("tracking_code"),
+            "carrier": (shipment or {}).get("carrier"),
+            "service": (shipment or {}).get("service"),
+        } if shipment else None,
+        "project_title": order.get("projectTitle", "DropKit kit"),
+        "recipient_name": (order.get("shipping_address") or {}).get("name", ""),
+        "timeline": timeline,
+    }

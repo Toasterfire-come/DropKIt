@@ -1,4 +1,4 @@
-"""DropKit email dispatcher — pure Gmail API, no Klaviyo.
+"""DropKit email dispatcher — SendGrid preferred, Gmail fallback.
 
 Drop-in replacement for the old `klaviyo_service`: same public surface
 (`fire`, `waitlist_joined`, `referrer_notify_new_signup`, etc.) so every
@@ -8,22 +8,24 @@ Each function:
   1. Picks the matching HTML template from /app/backend/email_templates/
   2. Substitutes `{{ var }}` tokens against the event properties
   3. Wraps it in `_layout.html`
-  4. Queues a Gmail API send via the dev user's connected mailbox
+  4. Sends via SendGrid when configured, otherwise falls back to Gmail
+     or logs to console when no credentials are set.
 
-When Gmail OAuth isn't connected yet (placeholder creds or no token row),
-sends silently no-op — exactly like the old Klaviyo behaviour.
+SendGrid is preferred because it has higher daily limits, better
+deliverability, and doesn't require OAuth token management.
 """
 from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import re
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import gmail_service
+import sendgrid_service
+from config import settings
 from db import get_db
 
 log = logging.getLogger("dropkit.email")
@@ -80,7 +82,12 @@ async def _dev_user_id() -> Optional[str]:
 
 
 async def _send(recipient: str, subject: str, html: str, unique_id: Optional[str] = None) -> None:
-    """Single-recipient Gmail send. No-op when Gmail isn't connected."""
+    """Single-recipient send. Route: SendGrid → Gmail → placeholder log.
+
+    SendGrid is checked first (SENDGRID_API_KEY env var). Falls back to
+    Gmail if SendGrid isn't configured. Logs to console if neither is
+    available — no exceptions ever reach the caller.
+    """
     if not recipient:
         return
     db = get_db()
@@ -89,25 +96,40 @@ async def _send(recipient: str, subject: str, html: str, unique_id: Optional[str
         if seen:
             return  # idempotency guard
 
-    user_id = await _dev_user_id()
-    if not user_id:
-        result = {"placeholder": True, "reason": "no_dev_user"}
-    else:
-        token = await gmail_service.get_connected(user_id)
-        # Use GMAIL_USER from settings as the sender email
-        sender = settings.GMAIL_USER or (token or {}).get("connected_email") or os.environ.get("SHIPPING_FROM_EMAIL", "")
-        if not sender:
-            log.warning("No sender email configured for Gmail; cannot send.")
-            result = {"placeholder": True, "reason": "no_sender_email"}
+    result = None
+
+    # 1. Try SendGrid
+    if settings.SENDGRID_API_KEY and not settings.SENDGRID_API_KEY.startswith("PLACEHOLDER"):
+        try:
+            result = await sendgrid_service.send_single(recipient, subject, html, unique_id)
+        except Exception as e:
+            log.warning("SendGrid send failed (%s): %s", recipient, e)
+
+    # 2. Fall back to Gmail if SendGrid didn't send
+    if result is None or result.get("status") == "error":
+        user_id = await _dev_user_id()
+        if not user_id:
+            result = {"placeholder": True, "reason": "no_dev_user"}
         else:
-            try:
-                result = await gmail_service.send_blast(
-                    user_id=user_id, sender=sender,
-                    subject=subject, html=html, recipients=[recipient],
-                )
-            except (RuntimeError, ValueError, Exception) as e:
-                log.warning("Gmail send failed (%s) → %s: %s", recipient, subject, e)
-                result = {"placeholder": True, "error": str(e)}
+            token = await gmail_service.get_connected(user_id)
+            sender = settings.GMAIL_USER or (token or {}).get("connected_email") or ""
+            if not sender:
+                log.warning("No sender email configured for Gmail fallback.")
+                result = {"placeholder": True, "reason": "no_sender_email"}
+            else:
+                try:
+                    result = await gmail_service.send_blast(
+                        user_id=user_id, sender=sender,
+                        subject=subject, html=html, recipients=[recipient],
+                    )
+                except Exception as e:
+                    log.warning("Gmail send failed (%s): %s", recipient, e)
+                    result = {"placeholder": True, "error": str(e)}
+
+    # 3. Final fallback — log to console
+    if result is None:
+        log.info("[EMAIL PLACEHOLDER] To: %s  Subject: %s", recipient, subject)
+        result = {"placeholder": True, "reason": "no_credential"}
 
     await db.email_log.insert_one({
         "unique_id": unique_id,
@@ -289,6 +311,36 @@ async def cycle_summary(email, cycle_label, orders_shipped, gross_revenue,
     }
     html = _render("14_cycle_summary.html", ctx)
     await _send(email, f"{cycle_label} · cycle closed", html, f"cycle_close:{cycle_label}")
+
+
+async def waitlist_drip_followup(email, first_name, referral_code):
+    """Send the "what's next" email ~3 days after waitlist signup."""
+    import asyncio
+    # Wait 3 days
+    await asyncio.sleep(259200)
+    ctx = {
+        "first_name": first_name,
+        "referral_code": referral_code,
+        "share_url": f"/?ref={referral_code}",
+    }
+    html = _render("15_whats_next.html", ctx)
+    await _send(email, f"What happens next, {first_name}?", html, f"drip:whatsnext:{referral_code}")
+
+
+async def delivery_notification(email, first_name, project_title, carrier, tracking_code,
+                                 bom_summary, guide_url, feedback_url):
+    """Sent when a kit is marked as delivered by the carrier."""
+    ctx = {
+        "first_name": first_name or "Maker",
+        "project_title": project_title or "Your DropKit",
+        "carrier": carrier or "carrier",
+        "tracking_code": tracking_code or "",
+        "bom_summary": bom_summary or "See the guide for the full component list.",
+        "guide_url": guide_url or "#",
+        "feedback_url": feedback_url or "#",
+    }
+    html = _render("16_delivery_notification.html", ctx)
+    await _send(email, f"Your {project_title} has arrived!", html, f"delivered:{tracking_code}")
 
 
 async def tax_nexus_alert(email, state, ytd_revenue_cents, threshold_cents):

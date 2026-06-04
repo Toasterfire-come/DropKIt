@@ -24,6 +24,7 @@ from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
 from auth import get_current_dev
+from config import settings
 from db import get_db
 import shipping_service
 import pack_slip
@@ -636,3 +637,567 @@ async def tax_nexus(user: dict = Depends(get_current_dev)):
                 crossing.append(state)
 
     return {"rows": rows, "alerted_states": crossing, "year": now.year}
+
+
+# =============================================================================
+# Item 16 — Pick list (combine today's orders with BOM demand)
+# =============================================================================
+@router.get("/pick-list")
+async def pick_list(_: dict = Depends(get_current_dev)):
+    """Generate a pick list for all unfulfilled orders today.
+
+    Groups components by need, sorted by category (parts first, then packaging).
+    Cross-references the active project's BOM against the number of kits to pick.
+    """
+    db = get_db()
+    project = await db.projects.find_one({"isActive": True})
+    if not project:
+        return {"project": None, "total_kits": 0, "picks": []}
+
+    pid = str(project["_id"])
+
+    # Count unfulfilled orders
+    order_count = await db.orders.count_documents({
+        "$or": [{"status": {"$exists": False}}, {"status": "paid"}],
+    })
+    if order_count == 0:
+        return {"project": project.get("title"), "total_kits": 0, "picks": []}
+
+    # Get BOM entries for active project
+    bom_entries = []
+    async for entry in db.bom_entries.find({"project_id": pid}):
+        bom_entries.append(entry)
+
+    if not bom_entries:
+        return {"project": project.get("title"), "total_kits": order_count,
+                "note": "No BOM defined for this project", "picks": []}
+
+    picks = []
+    for entry in bom_entries:
+        item_id = entry["inventory_item_id"]
+        per_kit = entry.get("qty_per_kit", 1)
+        if not ObjectId.is_valid(item_id):
+            continue
+        item = await db.inventory_items.find_one({"_id": ObjectId(item_id)})
+        if not item:
+            continue
+        total_needed = order_count * per_kit
+        stock = item.get("current_stock", 0) or 0
+        picks.append({
+            "item_id": str(item["_id"]),
+            "name": item["name"],
+            "sku": item.get("sku", ""),
+            "category": item.get("category", "part"),
+            "qty_per_kit": per_kit,
+            "total_needed": total_needed,
+            "current_stock": stock,
+            "shortfall": max(0, total_needed - stock),
+            "sufficient": stock >= total_needed,
+        })
+
+    picks.sort(key=lambda p: (0 if p["category"] == "part" else 1, p["category"], p["name"]))
+    return {
+        "project": project.get("title"),
+        "total_kits": order_count,
+        "picks": picks,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# =============================================================================
+# Item 17 — Kitting status board (Kanban pipeline)
+# =============================================================================
+KITTING_STATUSES = ["paid", "kitting", "packed", "shipped"]
+
+KITTING_STATUS_LABELS = {
+    "paid": "Awaiting Pick",
+    "kitting": "Being Kitted",
+    "packed": "Packed",
+    "shipped": "Shipped",
+}
+
+
+@router.get("/board")
+async def kitting_board(_: dict = Depends(get_current_dev)):
+    """Return orders grouped by kitting status for a Kanban pipeline view."""
+    db = get_db()
+    groups = {}
+    for status in KITTING_STATUSES:
+        query = {"kittingStatus": status} if status != "paid" else {
+            "$or": [{"kittingStatus": {"$exists": False}}, {"kittingStatus": "paid"}],
+        }
+        if status == "paid":
+            query["status"] = {"$ne": "fulfilled"}
+        orders = []
+        async for o in db.orders.find(query).sort("createdAt", 1).limit(30):
+            orders.append(serialize(o))
+        groups[status] = {
+            "label": KITTING_STATUS_LABELS[status],
+            "orders": orders,
+        }
+    return {
+        "statuses": KITTING_STATUSES,
+        "groups": groups,
+    }
+
+
+class AdvanceOrderRequest(BaseModel):
+    target_status: str  # kitting | packed | shipped
+
+
+@router.post("/board/{order_id}/advance")
+async def advance_order(order_id: str, payload: AdvanceOrderRequest,
+                         user: dict = Depends(get_current_dev)):
+    """Move an order to the next kitting stage."""
+    if payload.target_status not in KITTING_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Invalid status: {payload.target_status}")
+    db = get_db()
+    if not ObjectId.is_valid(order_id):
+        raise HTTPException(status_code=400, detail="Invalid order id")
+    now = datetime.now(timezone.utc)
+    update = {"kittingStatus": payload.target_status, "updatedAt": now}
+    if payload.target_status == "shipped":
+        update["status"] = "fulfilled"
+        update["fulfilledAt"] = now
+    await db.orders.update_one({"_id": ObjectId(order_id)}, {"$set": update})
+    await publish_event("order.advanced", {"order_id": order_id, "status": payload.target_status})
+    return {"order_id": order_id, "kitting_status": payload.target_status}
+
+
+# =============================================================================
+# Item 18 — Stock receive (receive PO items into inventory)
+# =============================================================================
+class StockReceiveRequest(BaseModel):
+    po_id: str
+    items: Optional[List[dict]] = None  # [{inventory_item_id, qty_received}]
+
+
+@router.post("/stock/receive")
+async def receive_stock(payload: StockReceiveRequest, user: dict = Depends(get_current_dev)):
+    """Receive stock from a purchase order into inventory.
+
+    Marks the PO as received and increments each item's current_stock.
+    After receiving, runs auto-fulfill to ship any pending orders.
+    """
+    db = get_db()
+    if not ObjectId.is_valid(payload.po_id):
+        raise HTTPException(status_code=400, detail="Invalid PO id")
+    po = await db.purchase_orders.find_one({"_id": ObjectId(payload.po_id)})
+    if not po:
+        raise HTTPException(status_code=404, detail="PO not found")
+
+    now = datetime.now(timezone.utc)
+    received_items = []
+
+    items_to_process = payload.items or po.get("items", [])
+    for it in items_to_process:
+        item_id = it.get("inventory_item_id") or it.get("id")
+        qty = it.get("qty_received") or it.get("qty", 1)
+        if not item_id or not ObjectId.is_valid(item_id):
+            continue
+        await db.inventory_items.update_one(
+            {"_id": ObjectId(item_id)},
+            {"$inc": {"current_stock": qty},
+             "$set": {"pending_arrival_date": None, "updated_at": now}},
+        )
+        item = await db.inventory_items.find_one({"_id": ObjectId(item_id)})
+        received_items.append({
+            "item_id": item_id,
+            "name": (item or {}).get("name", "?"),
+            "qty_received": qty,
+            "new_stock": (item or {}).get("current_stock", 0),
+        })
+
+    await db.purchase_orders.update_one(
+        {"_id": ObjectId(payload.po_id)},
+        {"$set": {"status": "received", "received_at": now, "updated_at": now}},
+    )
+
+    # Auto-fulfill: check if any pending orders can now ship
+    auto_fulfill_result = await _auto_fulfill(db)
+
+    await publish_event("stock.received", {"po_id": payload.po_id, "items": len(received_items)})
+
+    return {
+        "po_id": payload.po_id,
+        "received_items": received_items,
+        "pos_affected": len(received_items),
+        "auto_fulfill": auto_fulfill_result,
+    }
+
+
+async def _auto_fulfill(db) -> dict:
+    """Check all 'paid' orders vs inventory. For orders where every BOM item
+    has sufficient stock, buy the label and mark as ready to kit.
+
+    Returns count of orders auto-fulfilled.
+    """
+    project = await db.projects.find_one({"isActive": True})
+    if not project:
+        return {"auto_fulfilled": 0, "reason": "no_active_project"}
+
+    pid = str(project["_id"])
+
+    # Get BOM
+    bom_items = {}
+    async for entry in db.bom_entries.find({"project_id": pid}):
+        item_id = entry["inventory_item_id"]
+        bom_items[item_id] = entry.get("qty_per_kit", 1)
+
+    if not bom_items:
+        return {"auto_fulfilled": 0, "reason": "no_bom"}
+
+    # Get current stock for every BOM item
+    stock_map = {}
+    for item_id in bom_items:
+        if ObjectId.is_valid(item_id):
+            item = await db.inventory_items.find_one({"_id": ObjectId(item_id)})
+            stock_map[item_id] = item.get("current_stock", 0) if item else 0
+
+    # Find orders that are paid and have no label yet
+    orders_to_check = db.orders.find({
+        "$or": [{"status": {"$exists": False}}, {"status": "paid"}],
+    })
+    auto_fulfilled = 0
+    async for order in orders_to_check:
+        order_id_str = str(order["_id"])
+
+        # Skip if already has a shipment
+        existing = await db.shipments.find_one({"order_id": order_id_str})
+        if existing:
+            continue
+
+        # Check stock for one kit
+        sufficient = True
+        for item_id, per_kit in bom_items.items():
+            if stock_map.get(item_id, 0) < per_kit:
+                sufficient = False
+                break
+
+        if not sufficient:
+            continue
+
+        # Deduct stock from inventory
+        for item_id, per_kit in bom_items.items():
+            await db.inventory_items.update_one(
+                {"_id": ObjectId(item_id)},
+                {"$inc": {"current_stock": -per_kit}},
+            )
+            stock_map[item_id] = stock_map.get(item_id, 0) - per_kit
+
+        # Buy label if EasyPost is configured
+        from routes_dev_ops import _resolve_recipient_address  # reuse local helper
+        address = await _resolve_recipient_address(order, db)
+        label_info = {}
+        if address:
+            try:
+                rates = shipping_service.create_shipment_with_rates(to_address=address)
+                rate = rates.get("cheapest") or rates.get("standard")
+                if rate:
+                    label = shipping_service.buy_label(rates["shipment_id"], rate["id"])
+                    await db.shipments.insert_one({
+                        "order_id": order_id_str, **label,
+                        "created_at": datetime.now(timezone.utc),
+                    })
+                    label_info = {"tracking_code": label.get("tracking_code")}
+            except Exception:
+                pass
+
+        # Mark as kitting-ready
+        await db.orders.update_one(
+            {"_id": ObjectId(order_id_str)},
+            {"$set": {"kittingStatus": "paid", "updatedAt": datetime.now(timezone.utc)}},
+        )
+        auto_fulfilled += 1
+
+    if auto_fulfilled:
+        await publish_event("orders.auto_fulfilled", {"count": auto_fulfilled})
+    return {"auto_fulfilled": auto_fulfilled}
+
+
+# =============================================================================
+# Item 19 — Auto-fulfill trigger (run on demand + from stock receive)
+# =============================================================================
+@router.post("/auto-fulfill")
+async def trigger_auto_fulfill(_: dict = Depends(get_current_dev)):
+    """Manually trigger the auto-fulfill check for all pending orders."""
+    db = get_db()
+    result = await _auto_fulfill(db)
+    return result
+
+
+# =============================================================================
+# Item 20 — Carrier tracking webhook (EasyPost-compatible)
+# =============================================================================
+@router.post("/tracking/webhook", include_in_schema=False)
+async def tracking_webhook(request: Request):
+    """Receive tracking updates from EasyPost webhook.
+
+    EasyPost sends a POST to this URL with tracking event data when
+    a shipment's status changes (pre_transit, in_transit, out_for_delivery,
+    delivered, etc.).
+
+    Handles idempotent delivery with the delivery_notification email.
+    """
+    db = get_db()
+    now = datetime.now(timezone.utc)
+    try:
+        body = await request.json()
+    except Exception:
+        return {"ok": False, "error": "invalid_json"}
+
+    # EasyPost webhook payload shape:
+    # { "description": "tracker.updated",
+    #   "data": { "result": { "id", "tracking_code", "carrier", "status",
+    #                          "tracking_details": [...], ... } } }
+    result = body.get("data", {}).get("result") or body
+    tracking_code = result.get("tracking_code") or result.get("id", "")
+    status = (result.get("status") or "pre_transit").lower()
+
+    if not tracking_code:
+        return {"ok": False, "error": "no_tracking_code"}
+
+    # Find the shipment by tracking code
+    shipment = await db.shipments.find_one({"tracking_code": tracking_code})
+    if not shipment:
+        # Log as webhook failure for later review
+        await db.webhook_failures.insert_one({
+            "type": "tracking",
+            "tracking_code": tracking_code,
+            "status": status,
+            "payload": body,
+            "created_at": now,
+        })
+        return {"ok": False, "error": "shipment_not_found"}
+
+    # Update the shipment's tracking status
+    await db.shipments.update_one(
+        {"_id": shipment["_id"]},
+        {"$set": {"tracking_status": status, "last_tracking_update": now}},
+    )
+
+    # On delivery: send notification and mark order fulfilled
+    if status in ("delivered", "available_for_pickup"):
+        order_id = shipment.get("order_id")
+        if order_id:
+            await db.orders.update_one(
+                {"_id": ObjectId(order_id)},
+                {"$set": {"status": "fulfilled", "fulfilledAt": now,
+                          "tracking_status": status, "updatedAt": now}},
+            )
+            await publish_event("tracking.delivered", {
+                "tracking_code": tracking_code, "order_id": order_id,
+            })
+
+            # Send delivery notification email
+            order = await db.orders.find_one({"_id": ObjectId(order_id)})
+            if order:
+                project = await db.projects.find_one({"isActive": True})
+                project_title = (project or {}).get("title", "DropKit kit")
+                guide_url = f"https://dropkit.me/apps/makerbox/projects/{(project or {}).get('slug', '')}"
+                feedback_url = f"{guide_url}?feedback=1"
+
+                # Find the buyer email
+                buyer_email = None
+                if order.get("shopifyCustomerId"):
+                    u = await db.users.find_one({"shopifyCustomerId": order["shopifyCustomerId"]})
+                    buyer_email = (u or {}).get("email")
+                if not buyer_email and order.get("email"):
+                    buyer_email = order["email"]
+                if not buyer_email and order.get("shipping_address", {}).get("email"):
+                    buyer_email = order["shipping_address"]["email"]
+
+                if buyer_email:
+                    # Grab a short BOM summary
+                    bom_lines = []
+                    pid = str(project["_id"]) if project else None
+                    if pid:
+                        async for entry in db.bom_entries.find({"project_id": pid}):
+                            if ObjectId.is_valid(entry["inventory_item_id"]):
+                                item = await db.inventory_items.find_one(
+                                    {"_id": ObjectId(entry["inventory_item_id"])}
+                                )
+                                if item:
+                                    bom_lines.append(f"1x {item['name']}")
+                    mailer.fire(mailer.delivery_notification(
+                        email=buyer_email,
+                        first_name=(order.get("shipping_address") or {}).get("name", "Maker"),
+                        project_title=project_title,
+                        carrier=shipment.get("carrier", "carrier"),
+                        tracking_code=tracking_code,
+                        bom_summary="<br>".join(bom_lines[:8]) or "See the guide for the full component list.",
+                        guide_url=guide_url,
+                        feedback_url=feedback_url,
+                    ))
+
+        # If there's a replacement order with this tracking, update it too
+        await db.replacement_requests.update_one(
+            {"tracking_code": tracking_code},
+            {"$set": {"status": "delivered", "delivered_at": now}},
+        )
+
+    return {"ok": True, "tracking_code": tracking_code, "status": status}
+
+
+# =============================================================================
+# Item 21 — Funnel dashboard (views → signups → quotes → checkout → paid)
+# =============================================================================
+@router.get("/funnel")
+async def funnel_dashboard(_: dict = Depends(get_current_dev)):
+    """Waitlist → subscriber conversion funnel.
+
+    Returns counts for each stage so the team can see where dropoff happens.
+    """
+    db = get_db()
+    now = datetime.now(timezone.utc)
+    thirty_days = now - timedelta(days=30)
+    ninety_days = now - timedelta(days=90)
+
+    async def count_30(coll, query=None):
+        q = {"createdAt": {"$gte": thirty_days}}
+        if query:
+            q.update(query)
+        return await db[coll].count_documents(q)
+
+    async def count_total(coll, query=None):
+        if query:
+            return await db[coll].count_documents(query)
+        return await db[coll].estimated_document_count()
+
+    return {
+        "waitlist_total": await count_total("waitlist"),
+        "waitlist_30d": await count_30("waitlist"),
+        "quotes_30d": await count_30("checkout_quotes"),
+        "orders_total": await count_total("orders"),
+        "orders_30d": await count_30("orders"),
+        "fulfilled_30d": await count_30("orders", {"status": "fulfilled", "fulfilledAt": {"$gte": thirty_days}}),
+        "active_subscribers": await db.users.count_documents({"subscriptionStatus": "active"}),
+        "subscriptions_gained_30d": await db.users.count_documents({
+            "subscriptionStatus": "active",
+            "updatedAt": {"$gte": thirty_days},
+        }),
+        "subscriptions_lost_30d": await db.users.count_documents({
+            "subscriptionStatus": {"$in": ["cancelled", "paused"]},
+            "updatedAt": {"$gte": thirty_days},
+        }),
+        "net_growth_30d": await db.users.count_documents({
+            "subscriptionStatus": "active",
+            "updatedAt": {"$gte": thirty_days},
+        }) - await db.users.count_documents({
+            "subscriptionStatus": {"$in": ["cancelled", "paused"]},
+            "updatedAt": {"$gte": thirty_days},
+        }),
+        "checked_at": now.isoformat(),
+    }
+
+
+# =============================================================================
+# Item 22 — Newsletter send to waitlist (dev-triggered)
+# =============================================================================
+class NewsletterSendRequest(BaseModel):
+    subject: Optional[str] = "DropKit update"
+    template: Optional[str] = None  # custom HTML body, or use default
+    body_html: Optional[str] = None
+    dry_run: bool = False  # if True, only count recipients + log, don't send
+
+
+@router.post("/newsletter/send")
+async def send_newsletter(payload: NewsletterSendRequest, user: dict = Depends(get_current_dev)):
+    """Send an email blast to the entire waitlist.
+
+    Uses SendGrid bulk send when configured, falls back to placeholder logging.
+    When dry_run=True, just counts recipients without sending.
+    """
+    db = get_db()
+    recipients = []
+    async for w in db.waitlist.find({}, {"email": 1, "name": 1}):
+        email = w.get("email", "").strip()
+        if email:
+            recipients.append({"email": email, "name": (w.get("name") or "").strip().split(" ", 1)[0] or "Maker"})
+
+    total = len(recipients)
+    if payload.dry_run:
+        return {"dry_run": True, "recipient_count": total, "sample": recipients[:3]}
+
+    if payload.body_html:
+        body = payload.body_html
+    else:
+        ctx = {
+            "first_name": "Maker",
+            "content": "Here's what's new at DropKit this month.",
+            "unsubscribe_url": "#",
+        }
+        body = (
+            '<div style="font-family:Inter,sans-serif;max-width:560px;margin:0 auto;color:#F0F0EE;">'
+            f'<h1 style="font-size:24px;">{payload.subject}</h1>'
+            f"<p>{ctx['content']}</p>"
+            f'<p style="font-size:12px;color:#8B949E;margin-top:32px;">'
+            f'<a href="{ctx["unsubscribe_url"]}" style="color:#E8510A;">Unsubscribe</a></p></div>'
+        )
+
+    sent = 0
+    errors = 0
+    # Batch in groups of 50 to avoid overloading the email service
+    batch_size = 50
+    for i in range(0, total, batch_size):
+        batch = recipients[i:i + batch_size]
+        for r in batch:
+            try:
+                await mailer._send(
+                    recipient=r["email"],
+                    subject=payload.subject,
+                    html=body.replace("Maker", r["name"]),
+                    unique_id=f"newsletter:{user['id']}:{i}",
+                )
+                sent += 1
+            except Exception:
+                errors += 1
+
+    return {
+        "sent": sent,
+        "total": total,
+        "errors": errors,
+        "subject": payload.subject,
+    }
+
+
+# =============================================================================
+# Item 23 — Promote waitlist to subscriber (trigger on launch)
+# =============================================================================
+@router.post("/promote-waitlist")
+async def promote_waitlist(user: dict = Depends(get_current_dev)):
+    """Send a launch announcement to every waitlist member and mark them as notified.
+
+    Idempotent: skips anyone who already has `launchNotified: true`.
+    When LAUNCH_MODE goes to 'live', run this to convert the waitlist.
+    """
+    db = get_db()
+    now = datetime.now(timezone.utc)
+    launch_url = getattr(settings, "APP_URL", "https://dropkit.me") or "https://dropkit.me"
+
+    promoted = 0
+    already = 0
+    async for w in db.waitlist.find({"launchNotified": {"$ne": True}}):
+        email = w.get("email", "").strip()
+        if not email:
+            continue
+        first_name = (w.get("name") or "").strip().split(" ", 1)[0] or "Maker"
+        referral_code = w.get("referralCode", "")
+
+        mailer.fire(mailer.launch_announcement(
+            email=email,
+            first_name=first_name,
+            launch_url=f"{launch_url}/subscribe?ref={referral_code}",
+        ))
+        await db.waitlist.update_one(
+            {"_id": w["_id"]},
+            {"$set": {"launchNotified": True, "launchNotifiedAt": now}},
+        )
+        promoted += 1
+
+    already = await db.waitlist.count_documents({"launchNotified": True})
+    return {
+        "promoted": promoted,
+        "already_notified": already,
+        "total_waitlist": await db.waitlist.count_documents({}),
+    }

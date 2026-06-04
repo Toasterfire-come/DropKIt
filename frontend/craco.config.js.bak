@@ -80,19 +80,4 @@ const webpackConfig = {
   },
 };
 
-// Add visual edits in development
-if (isDevServer) {
-  try {
-    const { withVisualEdits } = require("@emergentbase/visual-edits/craco");
-    module.exports = withVisualEdits(webpackConfig);
-  } catch (err) {
-    if (err.code === 'MODULE_NOT_FOUND') {
-      console.warn("[Visual Edits] Package not installed — visual editing disabled");
-    } else {
-      throw err;
-    }
-    module.exports = webpackConfig;
-  }
-} else {
-  module.exports = webpackConfig;
-}
+module.exports = webpackConfig;

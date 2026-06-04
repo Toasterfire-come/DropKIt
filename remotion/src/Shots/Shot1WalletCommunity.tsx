@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, useCurrentFrame, useVideoConfig, spring, interpolate } from "remotion";
+import { AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig, spring, interpolate } from "remotion";
 
 /* ── Shot 1: DROP KIT Logo → Three Brand Lines ── */
 /* Shorts format: 1080×1920 — No community, no wallet — DROP KIT branded */
@@ -14,13 +14,12 @@ export const Shot1WalletCommunity: React.FC = () => {
   const { fps } = useVideoConfig();
 
   const centerX = 540;
-  const centerY = 780;
 
   // Brand positions — larger fan spread around center
   const brands = [
-    { x: 280, y: 440, color: COLORS.brandColors[0], label: "BRAND A" },
-    { x: 800, y: 440, color: COLORS.brandColors[1], label: "BRAND B" },
-    { x: 540, y: 1080, color: COLORS.brandColors[2], label: "BRAND C" },
+    { x: 200, y: 320, color: COLORS.brandColors[0], label: "BRAND A" },
+    { x: 880, y: 320, color: COLORS.brandColors[1], label: "BRAND B" },
+    { x: 540, y: 1200, color: COLORS.brandColors[2], label: "BRAND C" },
   ];
 
   // ── DROP KIT Logo entrance ──
@@ -35,7 +34,7 @@ export const Shot1WalletCommunity: React.FC = () => {
   });
 
   // ── Brand connector lines (staggered) ──
-  const brandStartFrames = [60, 90, 120];
+  const brandStartFrames = [30, 60, 90];
 
   const renderBrand = (startFrame: number, brandIdx: number) => {
     const local = frame - startFrame;
@@ -46,7 +45,7 @@ export const Shot1WalletCommunity: React.FC = () => {
       extrapolateRight: "clamp",
     });
     const lx = interpolate(lineProgress, [0, 1], [centerX, brand.x]);
-    const ly = interpolate(lineProgress, [0, 1], [centerY + 50, brand.y]);
+    const ly = interpolate(lineProgress, [0, 1], [780, brand.y]);
 
     const lineOpacity = interpolate(local, [0, 5, 22, 32], [0, 1, 1, 0], {
       extrapolateLeft: "clamp",
@@ -80,25 +79,25 @@ export const Shot1WalletCommunity: React.FC = () => {
       switch(idx) {
         case 0:
           return (
-            <svg width="70" height="70" viewBox="0 0 70 70" fill="none">
-              <rect x="15" y="15" width="40" height="40" rx="8" fill={brand.color} opacity="0.2" />
-              <rect x="20" y="20" width="30" height="30" rx="6" fill="none" stroke={brand.color} strokeWidth="3" />
-              <circle cx="35" cy="35" r="8" fill={brand.color} />
+            <svg width="100" height="100" viewBox="0 0 100 100" fill="none">
+              <rect x="15" y="15" width="70" height="70" rx="12" fill={brand.color} opacity="0.2" />
+              <rect x="25" y="25" width="50" height="50" rx="10" fill="none" stroke={brand.color} strokeWidth="4" />
+              <circle cx="50" cy="50" r="14" fill={brand.color} />
             </svg>
           );
         case 1:
           return (
-            <svg width="70" height="70" viewBox="0 0 70 70" fill="none">
-              <path d="M35 10 L50 25 L50 45 L35 60 L20 45 L20 25 Z" fill={brand.color} opacity="0.2" />
-              <path d="M35 20 L45 30 L45 40 L35 50 L25 40 L25 30 Z" fill="none" stroke={brand.color} strokeWidth="3" />
+            <svg width="100" height="100" viewBox="0 0 100 100" fill="none">
+              <path d="M50 8 L70 28 L70 52 L50 72 L30 52 L30 28 Z" fill={brand.color} opacity="0.2" />
+              <path d="M50 18 L62 32 L62 48 L50 62 L38 48 L38 32 Z" fill="none" stroke={brand.color} strokeWidth="4" />
             </svg>
           );
         case 2:
           return (
-            <svg width="70" height="70" viewBox="0 0 70 70" fill="none">
-              <circle cx="35" cy="35" r="25" fill={brand.color} opacity="0.2" />
-              <circle cx="35" cy="35" r="20" fill="none" stroke={brand.color} strokeWidth="3" />
-              <path d="M35 25 L42 35 L35 45 L28 35 Z" fill={brand.color} />
+            <svg width="100" height="100" viewBox="0 0 100 100" fill="none">
+              <circle cx="50" cy="50" r="36" fill={brand.color} opacity="0.2" />
+              <circle cx="50" cy="50" r="30" fill="none" stroke={brand.color} strokeWidth="4" />
+              <path d="M50 30 L60 50 L50 70 L40 50 Z" fill={brand.color} />
             </svg>
           );
         default:
@@ -114,66 +113,66 @@ export const Shot1WalletCommunity: React.FC = () => {
           >
             <line
               x1={centerX}
-              y1={centerY + 50}
+              y1={780}
               x2={lx}
               y2={ly}
               stroke={brand.color}
-              strokeWidth={4}
-              strokeDasharray="10 6"
+              strokeWidth={5}
+              strokeDasharray="12 8"
               opacity={lineOpacity}
             />
           </svg>
         )}
         {glowOpacity > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                left: brand.x - 100,
+                top: brand.y - 100,
+                width: 200,
+                height: 200,
+                borderRadius: 100,
+                backgroundColor: brand.color,
+                opacity: glowOpacity,
+                filter: "blur(45px)",
+                pointerEvents: "none",
+              }}
+            />
+          )}
           <div
             style={{
               position: "absolute",
-              left: brand.x - 65,
-              top: brand.y - 65,
-              width: 130,
-              height: 130,
-              borderRadius: 65,
-              backgroundColor: brand.color,
-              opacity: glowOpacity,
-              filter: "blur(30px)",
-              pointerEvents: "none",
+              left: brand.x - 100,
+              top: brand.y - 100,
+              width: 200,
+              height: 200,
+              border: `7px solid ${brand.color}`,
+              borderRadius: 35,
+              backgroundColor: `${brand.color}12`,
+              opacity: squareOpacity,
+              transform: `scale(${squareSpring})`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: `0 10px 40px ${brand.color}22`,
             }}
-          />
-        )}
-        <div
-          style={{
-            position: "absolute",
-            left: brand.x - 65,
-            top: brand.y - 65,
-            width: 130,
-            height: 130,
-            border: `4px solid ${brand.color}`,
-            borderRadius: 22,
-            backgroundColor: `${brand.color}12`,
-            opacity: squareOpacity,
-            transform: `scale(${squareSpring})`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: `0 4px 24px ${brand.color}22`,
-          }}
-        >
-          {renderBrandLogo(brandIdx)}
-        </div>
-        <div
-          style={{
-            position: "absolute",
-            left: brand.x - 80,
-            top: brand.y + 80,
-            width: 160,
-            textAlign: "center",
-            opacity: labelOpacity,
-          }}
-        >
-          <span style={{ fontSize: 20, fontWeight: 700, color: brand.color, fontFamily: "Helvetica, Arial, sans-serif", letterSpacing: 2 }}>
-            {brand.label}
-          </span>
-        </div>
+          >
+            {renderBrandLogo(brandIdx)}
+          </div>
+          <div
+            style={{
+              position: "absolute",
+              left: brand.x - 110,
+              top: brand.y + 110,
+              width: 220,
+              textAlign: "center",
+              opacity: labelOpacity,
+            }}
+          >
+            <span style={{ fontSize: 36, fontWeight: 900, color: brand.color, fontFamily: "Helvetica, Arial, sans-serif", letterSpacing: 3 }}>
+              {brand.label}
+            </span>
+          </div>
       </React.Fragment>
     );
   };
@@ -181,8 +180,8 @@ export const Shot1WalletCommunity: React.FC = () => {
   return (
     <AbsoluteFill style={{ backgroundColor: "#FFFFFF", overflow: "hidden" }}>
       {/* Title bar */}
-      <div style={{ position: "absolute", top: 80, left: 0, width: "100%", textAlign: "center", opacity: interpolate(frame - 3, [0, 12], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) }}>
-        <span style={{ fontSize: 22, fontWeight: 600, color: "#B2BEC3", letterSpacing: 5, fontFamily: "Helvetica, Arial, sans-serif" }}>
+      <div style={{ position: "absolute", top: 100, left: 0, width: "100%", textAlign: "center", opacity: interpolate(frame - 3, [0, 12], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) }}>
+        <span style={{ fontSize: 40, fontWeight: 800, color: "#636E72", letterSpacing: 10, fontFamily: "Helvetica, Arial, sans-serif" }}>
           FUNDING PARTNERS
         </span>
       </div>
@@ -192,26 +191,31 @@ export const Shot1WalletCommunity: React.FC = () => {
         style={{
           position: "absolute",
           left: centerX,
-          top: centerY,
+          top: 640,
           transform: `translate(-50%, -50%) scale(${logoSpring})`,
           opacity: logoOpacity,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 0,
+          gap: 24,
         }}
       >
-        {/* Drop Kit styled text logo */}
-        <div style={{ display: "flex", alignItems: "baseline", gap: 0 }}>
-          <span style={{ fontFamily: "Helvetica, Arial, sans-serif", fontSize: 72, fontWeight: 900, color: COLORS.brand, letterSpacing: 2, lineHeight: 1 }}>
-            DROP
-          </span>
-          <span style={{ fontFamily: "Helvetica, Arial, sans-serif", fontSize: 72, fontWeight: 300, color: COLORS.brand, letterSpacing: 2, lineHeight: 1, marginLeft: 8 }}>
-            KIT
-          </span>
-        </div>
-        {/* Underline accent */}
-        <div style={{ width: 220, height: 4, backgroundColor: "#00B894", borderRadius: 2, marginTop: 8 }} />
+         {/* Logo2.png image */}
+         <Img
+           src={staticFile("Logo2.png")}
+           style={{ width: 340, height: "auto", objectFit: "contain" }}
+         />
+         {/* DropKIt name underneath */}
+         <div style={{ display: "flex", alignItems: "baseline", gap: 0 }}>
+           <span style={{ fontFamily: "Helvetica, Arial, sans-serif", fontSize: 88, fontWeight: 900, color: COLORS.brand, letterSpacing: 5, lineHeight: 1 }}>
+             DROP
+           </span>
+           <span style={{ fontFamily: "Helvetica, Arial, sans-serif", fontSize: 88, fontWeight: 300, color: COLORS.brand, letterSpacing: 5, lineHeight: 1, marginLeft: 16 }}>
+             KIT
+           </span>
+         </div>
+         {/* Underline accent */}
+         <div style={{ width: 300, height: 8, backgroundColor: "#00B894", borderRadius: 4, marginTop: 4 }} />
       </div>
 
       {/* ── Brand Connectors ── */}

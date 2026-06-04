@@ -5,23 +5,22 @@ import { AbsoluteFill, useCurrentFrame, useVideoConfig, spring, interpolate } fr
 /* Restored animation: fills, stutters, retracts, red pulse */
 
 const COLORS = {
-  bg: "#1E1E2E",
+  bg: "#F8F9FA",
   barBg: "#2D2D44",
   fillStart: "#00B894",
   fillEnd: "#55EFC4",
-  label: "#FFFFFF",
+  label: "#2D3436",
   labelDim: "#636E72",
-  redPulse: "#D63031",
 };
 
 export const Shot2ProgressBar: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const barW = 920;
-  const barH = 56;
+  const barW = 1000;
+  const barH = 80;
   const barX = (1080 - barW) / 2;
-  const barY = 900;
+  const barY = 880;
 
   const entranceSpring = spring({ frame: frame - 5, fps, config: { damping: 14, stiffness: 90 } });
   const labelOpacity = interpolate(frame - 3, [0, 12], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -64,71 +63,29 @@ export const Shot2ProgressBar: React.FC = () => {
     fillProgress = 0;
   }
 
-  // Red pulse on empty bar (frames 85-120)
-  const pulseFrame = frame - 85;
-  const redPulseOpacity = interpolate(
-    pulseFrame,
-    [0, 10, 20, 30, 35],
-    [0, 0.4, 0, 0.3, 0],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
-  );
-
-  return (
+return (
     <AbsoluteFill style={{ backgroundColor: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
-      {/* Title */}
-      <div style={{ position: "absolute", top: 220, left: 0, width: "100%", textAlign: "center", opacity: labelOpacity }}>
-        <span style={{ fontFamily: "Helvetica, Arial, sans-serif", fontSize: 30, fontWeight: 700, color: COLORS.labelDim, letterSpacing: 6 }}>
-          FUNDRAISING
-        </span>
-      </div>
+      {/* Label - centered vertically */}
+      <div style={{ position: "absolute", top: "32%", left: 0, width: "100%", display: "flex", justifyContent: "center", alignItems: "center", opacity: labelOpacity, flexDirection: "column", gap: 50 }}>
+         <span style={{ fontFamily: "Helvetica, Arial, sans-serif", fontSize: 50, fontWeight: 800, color: COLORS.labelDim, letterSpacing: 4 }}>
+           FUNDRAISING
+         </span>
+         <span style={{ fontFamily: "Helvetica, Arial, sans-serif", fontSize: 110, fontWeight: 900, color: COLORS.label, letterSpacing: 5 }}>
+           $0 / $2,000
+         </span>
+       </div>
 
-      {/* Label */}
-      <div style={{ position: "absolute", top: barY - 130, left: barX, width: barW, display: "flex", justifyContent: "space-between", alignItems: "flex-end", opacity: labelOpacity }}>
-        <span style={{ fontFamily: "Helvetica, Arial, sans-serif", fontSize: 22, fontWeight: 500, color: COLORS.labelDim, letterSpacing: 2 }}>
-          Current
-        </span>
-        <span style={{ fontFamily: "Helvetica, Arial, sans-serif", fontSize: 68, fontWeight: 800, color: COLORS.label, letterSpacing: 2 }}>
-          $0 / $2,000
-        </span>
-      </div>
-
-      {/* Bar */}
-      <div style={{ position: "absolute", left: barX, top: barY, width: barW, height: barH, borderRadius: barH / 2, backgroundColor: COLORS.barBg, overflow: "hidden", transform: `scaleX(${entranceSpring})`, transformOrigin: "left center" }}>
-        {/* Fill */}
-        <div style={{ 
-          width: `${fillProgress * 100}%`, 
-          height: "100%", 
-          borderRadius: barH / 2, 
-          background: `linear-gradient(90deg, ${COLORS.fillStart}, ${COLORS.fillEnd})`,
-          transition: "none",
-        }} />
-        
-        {/* Red pulse overlay */}
-        {redPulseOpacity > 0 && (
-          <div
-            style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              width: "100%",
-              height: "100%",
-              borderRadius: barH / 2,
-              background: `radial-gradient(ellipse at 50% 50%, ${COLORS.redPulse}88 0%, ${COLORS.redPulse}44 40%, transparent 70%)`,
-              opacity: redPulseOpacity,
-            }}
-          />
-        )}
-      </div>
-
-      {/* Subtitle */}
-      <div style={{ position: "absolute", top: barY + 100, left: 0, width: "100%", textAlign: "center", opacity: interpolate(frame, [12, 22], [0, 0.6], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) }}>
-        <span style={{ fontFamily: "Helvetica, Arial, sans-serif", fontSize: 22, fontWeight: 400, color: COLORS.labelDim, letterSpacing: 3 }}>
-          Help us reach our goal
-        </span>
-      </div>
+       {/* Bar - centered */}
+       <div style={{ position: "absolute", left: barX, top: "58%", width: barW, height: barH, borderRadius: barH / 2, backgroundColor: COLORS.barBg, overflow: "hidden", transform: `scaleX(${entranceSpring})`, transformOrigin: "left center" }}>
+         {/* Fill */}
+         <div style={{ 
+           width: `${fillProgress * 100}%`, 
+           height: "100%", 
+           borderRadius: barH / 2, 
+           background: `linear-gradient(90deg, ${COLORS.fillStart}, ${COLORS.fillEnd})`,
+           transition: "none",
+         }} />
+       </div>
     </AbsoluteFill>
   );
 };

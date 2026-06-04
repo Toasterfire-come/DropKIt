@@ -19,6 +19,7 @@ import NotFound from "./pages/NotFound";
 import ReferralStatus from "./pages/ReferralStatus";
 import Leaderboard from "./pages/Leaderboard";
 import ReplacementRequest from "./pages/ReplacementRequest";
+import TrackOrder from "./pages/TrackOrder";
 import { captureRefFromUrl } from "./lib/referral";
 
 function Protected({ children, role }) {
@@ -67,6 +68,7 @@ export default function App() {
               <Route path="pages/faq" element={<FAQ />} />
               <Route path="help/replacement" element={<ReplacementRequest />} />
               <Route path="r/:code" element={<ReferralStatus />} />
+              <Route path="track/:token" element={<TrackOrder />} />
               <Route path="leaderboard" element={<Leaderboard />} />
               <Route path="*" element={<NotFound />} />
             </Route>

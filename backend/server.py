@@ -16,6 +16,8 @@ from routes_dev_ops import router as dev_ops_router
 from routes_inventory import router as inventory_router
 from routes_seo import router as seo_router
 from routes_shopify_auth import router as shopify_auth_router
+from routes_subscription import router as subscription_router
+from routes_gallery import router as gallery_router
 from auth import seed_dev_user
 from seed_projects import seed_safekeyvault
 
@@ -86,6 +88,8 @@ api.include_router(dev_router)
 api.include_router(dev_ops_router)
 api.include_router(inventory_router)
 api.include_router(seo_router)
+api.include_router(subscription_router)
+api.include_router(gallery_router)
 api.include_router(admin_router)
 api.include_router(webhooks_router)
 
