@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import api, { formatApiError } from "../lib/api";
 import { toast } from "sonner";
-import { Pause, Play, SkipForward, ExternalLink, Gift, LogOut, MapPin } from "lucide-react";
+import { Pause, Play, SkipForward, ExternalLink, Gift, LogOut, MapPin } from "../lib/icons";
 import { useAuth } from "../lib/contexts";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "../components/ui/button";

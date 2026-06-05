@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api from "../lib/api";
 import { toast } from "sonner";
-import { X } from "lucide-react";
+import { X } from "../lib/icons";
 import ReferralSuccess from "./ReferralSuccess";
 import { rememberMyCode, getMyCode } from "../lib/referral";
 

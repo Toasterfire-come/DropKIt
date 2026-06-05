@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDocMeta } from "../lib/useDocMeta";
 import api from "../lib/api";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown } from "../lib/icons";
 
 export default function FAQ() {
   useDocMeta({ title: "Frequently asked — DropKit", description: "Subscription, shipping, refunds, project sourcing, and open-source license details for DropKit's monthly hardware project box." });

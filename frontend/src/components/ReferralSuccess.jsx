@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import api from "../lib/api";
 import { buildShareUrl } from "../lib/referral";
 import { toast } from "sonner";
-import { Copy, Check, Users, Zap } from "lucide-react";
+import { Copy, Check, Users, Zap } from "../lib/icons";
 import SharePicker from "./SharePicker";
 
 export default function ReferralSuccess({ code, compact = false }) {

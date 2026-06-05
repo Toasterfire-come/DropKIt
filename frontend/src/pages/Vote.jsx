@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api from "../lib/api";
 import { toast } from "sonner";
-import { Vote as VoteIcon, Check } from "lucide-react";
+import { Vote as VoteIcon, Check } from "../lib/icons";
 
 export default function Vote() {
   const [cycle, setCycle] = useState(null);

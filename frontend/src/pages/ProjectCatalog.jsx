@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDocMeta } from "../lib/useDocMeta";
 import api, { formatApiError } from "../lib/api";
 import { toast } from "sonner";
-import { Cpu, Github, ArrowRight, Repeat, Check } from "lucide-react";
+import { Cpu, Github, ArrowRight, Repeat, Check } from "../lib/icons";
 import { Link } from "react-router-dom";
 import { useAuth, useUIMode } from "../lib/contexts";
 

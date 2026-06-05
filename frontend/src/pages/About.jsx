@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Cpu, Heart, Zap, Github } from "lucide-react";
+import { Cpu, Heart, Zap, Github } from "../lib/icons";
 import { useDocMeta } from "../lib/useDocMeta";
 
 export default function About() {

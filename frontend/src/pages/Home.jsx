@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import api from "../lib/api";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { Cpu, Vote as VoteIcon, Package, ArrowRight, Github, MessageCircle, ChevronDown, Zap, Search } from "lucide-react";
+import { Cpu, Vote as VoteIcon, Package, ArrowRight, Github, MessageCircle, ChevronDown, Zap, Search } from "../lib/icons";
 import { useUIMode } from "../lib/contexts";
 import { captureRefFromUrl, rememberMyCode, getMyCode } from "../lib/referral";
 import ReferralSuccess from "../components/ReferralSuccess";

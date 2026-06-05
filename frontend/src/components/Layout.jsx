@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Outlet, Link, NavLink, useNavigate } from "react-router-dom";
-import { Cpu, Github, Instagram, Youtube, LogOut, User, Settings, Share2 } from "lucide-react";
+import { Cpu, Github, Instagram, Youtube, LogOut, User, Settings, Share2 } from "../lib/icons";
 import { useAuth, useUIMode } from "../lib/contexts";
 import WaitlistModal from "./WaitlistModal";
 import { getMyCode } from "../lib/referral";

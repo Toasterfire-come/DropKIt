@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import ReferralSuccess from "../components/ReferralSuccess";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "../lib/icons";
 
 export default function ReferralStatus() {
   const { code } = useParams();

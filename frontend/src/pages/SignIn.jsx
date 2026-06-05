@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/contexts";
 import api, { formatApiError } from "../lib/api";
 import { toast } from "sonner";
-import { LogIn, ShoppingBag } from "lucide-react";
+import { LogIn, ShoppingBag } from "../lib/icons";
 
 export default function SignIn() {
   const { login } = useAuth();

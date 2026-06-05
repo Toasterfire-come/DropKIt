@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/contexts";
 import { formatApiError } from "../lib/api";
 import { toast } from "sonner";
-import { UserPlus } from "lucide-react";
+import { UserPlus } from "../lib/icons";
 
 export default function SignUp() {
   const { register } = useAuth();

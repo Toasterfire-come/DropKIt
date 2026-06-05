@@ -3,7 +3,7 @@ import { useDocMeta } from "../lib/useDocMeta";
 import { Link } from "react-router-dom";
 import api, { formatApiError } from "../lib/api";
 import { toast } from "sonner";
-import { ArrowRight, Truck, Zap } from "lucide-react";
+import { ArrowRight, Truck, Zap } from "../lib/icons";
 import { useUIMode } from "../lib/contexts";
 
 const STATES = ["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC"];

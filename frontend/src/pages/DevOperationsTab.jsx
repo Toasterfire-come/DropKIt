@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import {
   Activity, Truck, Printer, FileText, Users, Wrench, AlertTriangle,
   PlayCircle, Radio, Loader2,
-} from "lucide-react";
+} from "../lib/icons";
 // Assuming OrderDetail is in the same directory and is correctly imported
 // If DevOrderDetail is a separate component, ensure it's imported correctly.
 // For now, I'll assume it's not directly used in this file's current structure

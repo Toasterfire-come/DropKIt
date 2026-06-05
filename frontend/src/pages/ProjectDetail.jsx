@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
-import { Github, FileText, Youtube, ArrowLeft } from "lucide-react";
+import { Github, FileText, Youtube, ArrowLeft } from "../lib/icons";
 import { useDocMeta } from "../lib/useDocMeta";
 
 export default function ProjectDetail() {

@@ -7,7 +7,7 @@ import {
   Settings, ToggleLeft, ToggleRight, RefreshCw, Activity,
   Mail, Package, Truck, ExternalLink, Send, Link2, Trash2, Printer, QrCode,
   CheckCircle2,
-} from "lucide-react";
+} from "../lib/icons";
 import OperationsTab from "./DevOperationsTab";
 
 const TABS = [

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
-import { Package, Truck, CheckCircle2, Clock } from "lucide-react";
+import { Package, Truck, CheckCircle2, Clock } from "../lib/icons";
 
 const STATUS_ICONS = {
   completed: CheckCircle2,

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDocMeta } from "../lib/useDocMeta";
 import { Link } from "react-router-dom";
 import api from "../lib/api";
-import { Trophy, Zap, Users } from "lucide-react";
+import { Trophy, Zap, Users } from "../lib/icons";
 
 export default function Leaderboard() {
   useDocMeta({ title: "Launch leaderboard — DropKit waitlist referrals", description: "The makers with the most waitlist referrals and earliest priority shipping when DropKit launches." });

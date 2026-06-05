@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Wrench, ArrowLeft } from "lucide-react";
+import { Wrench, ArrowLeft } from "../lib/icons";
 import api, { formatApiError } from "../lib/api";
 import { useDocMeta } from "../lib/useDocMeta";
 

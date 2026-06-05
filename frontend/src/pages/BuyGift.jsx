@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useDocMeta } from "../lib/useDocMeta";
 import { Link } from "react-router-dom";
-import { Gift, ArrowRight } from "lucide-react";
+import { Gift, ArrowRight } from "../lib/icons";
 import { useUIMode } from "../lib/contexts";
 
 const TIERS = [
